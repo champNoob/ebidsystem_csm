@@ -6,6 +6,9 @@
 
 ```txt
 ebidsystem_csm/
+├── bin/                        # 编译后的二进制文件（.gitignore）
+│   └── myapp
+│
 ├── cmd/                        # 应用程序入口（支持多程序入口）
 │   ├── cli/                      # 命令行工具（暂不实现）
 │   │   └── main.go
@@ -13,6 +16,18 @@ ebidsystem_csm/
 │       ├── main.go                 # 主入口文件
 │       ├── wire.go                 # Wire依赖定义（暂不实现）
 │       └── wire_gen.go             # Wire生成的代码（.gitignore）
+│
+├── deployments/                # 部署配置
+│   ├── docker/
+│   │   ├── Dockerfile
+│   │   └── docker-compose.yml
+│   ├── k8s/
+│   └── nginx/
+│
+├── docs/                       # 文档
+│   ├── api/
+│   ├── architecture/
+│   └── database/
 │
 ├── internal/                   # 私有应用程序代码（外部不可导入）
 │   ├── api/                      # HTTP接口层
@@ -97,6 +112,11 @@ ebidsystem_csm/
 │       ├── local_cache.go          # 本地缓存
 │       └── distributed_lock.go     # 分布式锁
 │
+├── log/                        # 日志文件目录（.gitignore）
+│   ├── app/
+│   ├── access/
+│   └── error/
+│
 ├── pkg/                        # 公共库包（可被外部项目引用）
 │   ├── errors/                   # 自定义错误类型
 │   ├── pagination/               # 分页组件
@@ -107,38 +127,18 @@ ebidsystem_csm/
 │   ├── migration/
 │   └── build.sh
 │
+├── storage/                    # 存储目录（上传文件等，.gitignore）
+│   ├── uploads/
+│   └── cache/
+│
+├── tmp/                        # 临时文件（.gitignore）
+│
 ├── test/                       # 测试文件
 │   ├── e2e/                      # 端到端测试
 │   └── integration/              # 集成测试
 │
 ├── web/                        # Web资源（可选）
 │   └── static/
-│
-├── deployments/                # 部署配置
-│   ├── docker/
-│   │   ├── Dockerfile
-│   │   └── docker-compose.yml
-│   ├── k8s/
-│   └── nginx/
-│
-├── docs/                       # 文档
-│   ├── api/
-│   ├── architecture/
-│   └── database/
-│
-├── bin/                        # 编译后的二进制文件（.gitignore）
-│   └── myapp
-│
-├── log/                        # 日志文件目录（.gitignore）
-│   ├── app/
-│   ├── access/
-│   └── error/
-│
-├── tmp/                        # 临时文件（.gitignore）
-│
-├── storage/                    # 存储目录（上传文件等，.gitignore）
-│   ├── uploads/
-│   └── cache/
 │
 ├── .env.example                # 环境变量示例
 ├── .env.local                  # 本地环境配置（.gitignore）
