@@ -1,0 +1,23 @@
+@startuml
+title Request Flow - Get User By ID
+
+actor Client
+participant "Gin Router" as Router
+participant "UserHandler" as Handler
+participant "UserService" as Service
+participant "UserRepository\n(interface)" as Repo
+participant "UserRepo(MySQL)" as RepoImpl
+database "MySQL" as DB
+
+Client -> Router : HTTP Request
+Router -> Handler : call handler
+Handler -> Service : GetUser(id)
+Service -> Repo : GetByID(id)
+Repo -> RepoImpl : dispatch
+RepoImpl -> DB : SQL Query
+DB --> RepoImpl : result
+RepoImpl --> Service : User
+Service --> Handler : User
+Handler --> Client : JSON Response
+
+@enduml
