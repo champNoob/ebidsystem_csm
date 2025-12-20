@@ -27,3 +27,18 @@ func (r *UserRepo) GetByID(ctx context.Context, id int64) (*model.User, error) {
 	}
 	return &u, nil
 }
+
+func (r *UserRepo) Create(ctx context.Context, user *model.User) error {
+	query := `
+INSERT INTO users
+(username, password_hash, role, is_deleted, created_at, updated_at)
+VALUES (?, ?, ?, 0, NOW(), NOW())
+`
+	_, err := r.db.ExecContext(ctx,
+		query,
+		user.Username,
+		user.PasswordHash,
+		user.Role,
+	)
+	return err
+}

@@ -26,6 +26,7 @@ func SetupRouter() *gin.Engine {
 	})
 
 	r.GET("/users/:id", userHandler.GetUser)
+	r.POST("/users", userHandler.CreateUser)
 
 	return r
 }
