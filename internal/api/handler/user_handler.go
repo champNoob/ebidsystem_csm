@@ -39,8 +39,15 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 		return
 	}
 
-	ctx := c.Request.Context()
-	if err := h.service.CreateUser(ctx, req); err != nil {
+	// ctx := c.Request.Context()
+	if err := h.service.CreateUser(
+		c.Request.Context(),
+		service.CreateUserInput{
+			Username: req.Username,
+			Password: req.Password,
+			Role:     req.Role,
+		},
+	); err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}

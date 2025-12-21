@@ -7,5 +7,6 @@ import (
 
 type UserRepository interface {
 	GetByID(ctx context.Context, id int64) (*model.User, error)
+	ExistsByUsername(ctx context.Context, username string) (bool, error)
 	Create(ctx context.Context, user *model.User) error
 }

@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"ebidsystem_csm/internal/api/dto/request"
 	"ebidsystem_csm/internal/model"
 	"ebidsystem_csm/internal/pkg/security"
 	"ebidsystem_csm/internal/repository"
@@ -20,21 +19,27 @@ func (s *UserService) GetUser(ctx context.Context, id int64) (*model.User, error
 	return s.repo.GetByID(ctx, id)
 }
 
+type CreateUserInput struct {
+	Username string
+	Password string
+	Role     string
+}
+
 func (s *UserService) CreateUser(
 	ctx context.Context,
-	req request.CreateUserRequest,
+	input CreateUserInput,
 ) error {
 
 	// 1. 密码处理（业务规则）
-	hash, err := security.HashPassword(req.Password)
+	hash, err := security.HashPassword(input.Password)
 	if err != nil {
 		return err
 	}
 
 	user := &model.User{
-		Username:     req.Username,
+		Username:     input.Username,
 		PasswordHash: hash,
-		Role:         req.Role,
+		Role:         input.Role,
 		IsDeleted:    false,
 	}
 

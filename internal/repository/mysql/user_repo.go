@@ -28,13 +28,26 @@ func (r *UserRepo) GetByID(ctx context.Context, id int64) (*model.User, error) {
 	return &u, nil
 }
 
+func (r *UserRepo) ExistsByUsername(ctx context.Context, username string) (bool, error) {
+	var count int
+	err := r.db.QueryRowContext(
+		ctx,
+		"SELECT COUNT(1) FROM users WHERE username = ? AND is_deleted = 0",
+		username,
+	).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
 func (r *UserRepo) Create(ctx context.Context, user *model.User) error {
 	query := `
-INSERT INTO users
-(username, password_hash, role, is_deleted, created_at, updated_at)
-VALUES (?, ?, ?, 0, NOW(), NOW())
-`
-	_, err := r.db.ExecContext(ctx,
+		INSERT INTO users
+		(username, password_hash, role, is_deleted, created_at, updated_at)
+		VALUES (?, ?, ?, 0, NOW(), NOW())`
+	_, err := r.db.ExecContext(
+		ctx,
 		query,
 		user.Username,
 		user.PasswordHash,
