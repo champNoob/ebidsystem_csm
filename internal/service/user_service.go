@@ -50,3 +50,30 @@ func (s *UserService) CreateUser(
 
 	return s.repo.Create(ctx, user)
 }
+
+type LoginInput struct {
+	Username string
+	Password string
+}
+
+func (s *UserService) Login(ctx context.Context, input LoginInput) (string, error) {
+	user, err := s.repo.FindByUsername(ctx, input.Username)
+	if err != nil {
+		return "", ErrInternal
+	}
+	if user == nil || user.IsDeleted {
+		return "", ErrUserNotFound
+	}
+
+	if !security.VerifyPassword(input.Password, user.PasswordHash) {
+		return "", ErrInvalidPassword
+	}
+
+	// 生成 JWT（下一步）
+	token, err := security.GenerateJWT(user.ID, user.Role)
+	if err != nil {
+		return "", ErrInternal
+	}
+
+	return token, nil
+}

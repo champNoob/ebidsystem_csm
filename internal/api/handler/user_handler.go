@@ -54,3 +54,31 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 
 	c.JSON(201, gin.H{"message": "user created"})
 }
+
+func (h *UserHandler) Login(c *gin.Context) {
+	var req request.LoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "invalid request"})
+		return
+	}
+
+	token, err := h.service.Login(
+		c.Request.Context(),
+		service.LoginInput{
+			Username: req.Username,
+			Password: req.Password,
+		},
+	)
+
+	if err != nil {
+		switch err {
+		case service.ErrUserNotFound, service.ErrInvalidPassword:
+			c.JSON(401, gin.H{"error": "invalid credentials"})
+		default:
+			c.JSON(500, gin.H{"error": "internal error"})
+		}
+		return
+	}
+
+	c.JSON(200, gin.H{"token": token})
+}

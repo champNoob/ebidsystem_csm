@@ -41,6 +41,32 @@ func (r *UserRepo) ExistsByUsername(ctx context.Context, username string) (bool,
 	return count > 0, nil
 }
 
+func (r *UserRepo) FindByUsername(ctx context.Context, username string) (*model.User, error) {
+	row := r.db.QueryRowContext(
+		ctx,
+		`SELECT id, username, password_hash, role, is_deleted
+		 FROM users WHERE username = ?`,
+		username,
+	)
+
+	var user model.User
+	err := row.Scan(
+		&user.ID,
+		&user.Username,
+		&user.PasswordHash,
+		&user.Role,
+		&user.IsDeleted,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
 func (r *UserRepo) Create(ctx context.Context, user *model.User) error {
 	query := `
 		INSERT INTO users
