@@ -1,4 +1,4 @@
-package middleware
+package auth
 
 import (
 	"net/http"
@@ -24,7 +24,7 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// 2. 期望格式：Bearer xxx
+		// 2. Bearer Token 格式校验
 		parts := strings.SplitN(authHeader, " ", 2)
 		if len(parts) != 2 || parts[0] != "Bearer" {
 			c.AbortWithStatusJSON(
@@ -64,7 +64,6 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 
 		// 4. 把用户信息塞进 Gin Context
 		c.Set("userID", claims.UserID)
-		c.Set("username", claims.Username)
 		c.Set("role", claims.Role)
 
 		c.Next()

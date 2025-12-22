@@ -2,7 +2,7 @@ package route
 
 import (
 	"ebidsystem_csm/internal/api/handler"
-	"ebidsystem_csm/internal/middleware"
+	"ebidsystem_csm/internal/middleware/auth"
 	"ebidsystem_csm/internal/pkg/database"
 	"ebidsystem_csm/internal/repository/mysql"
 	"ebidsystem_csm/internal/service"
@@ -26,26 +26,24 @@ func SetupRouter() *gin.Engine {
 		})
 	})
 
-	// r.GET("/users/:id", userHandler.GetUser)
 	r.POST("/users", userHandler.CreateUser)
 	r.POST("/login", userHandler.Login)
 
 	// === 需要登录 ===
-	auth := r.Group("/")
-	auth.Use(middleware.JWTAuthMiddleware())
-	{
-		auth.GET("/users/:id", userHandler.GetUser)
-	}
+	api := r.Group("/api")
+	api.Use(auth.JWTAuthMiddleware())
 
-	// === 需要 admin 权限 ===
-	admin := r.Group("/admin")
+	api.GET("/me", userHandler.GetMe)
+
+	// === 管理员接口 ===
+	admin := r.Group("/api/admin")
 	admin.Use(
-		middleware.JWTAuthMiddleware(),
-		middleware.RoleMiddleware("admin"),
+		auth.JWTAuthMiddleware(),
+		auth.RequireRole("admin"),
 	)
-	{
-		admin.GET("/users/:id", userHandler.GetUser)
-	}
+
+	admin.GET("/users/:id", userHandler.GetUser)
+	admin.POST("/users", userHandler.CreateUser)
 
 	return r
 }

@@ -1,4 +1,4 @@
-package middleware
+package auth
 
 import (
 	"net/http"
@@ -6,8 +6,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// RoleMiddleware：角色鉴权
-func RoleMiddleware(allowedRoles ...string) gin.HandlerFunc {
+// 角色鉴权
+func RequireRole(allowedRoles ...string) gin.HandlerFunc {
 	roleSet := make(map[string]struct{})
 	for _, r := range allowedRoles {
 		roleSet[r] = struct{}{}

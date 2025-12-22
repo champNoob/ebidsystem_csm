@@ -32,6 +32,35 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 	c.JSON(200, user)
 }
 
+// GetMe 返回当前登录用户的信息
+func (h *UserHandler) GetMe(c *gin.Context) {
+	// 1. 从 JWT Middleware 写入的 context 中取 userID
+	userIDAny, exists := c.Get("userID")
+	if !exists {
+		c.JSON(401, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	userID, ok := userIDAny.(int64)
+	if !ok {
+		c.JSON(500, gin.H{"error": "invalid user id type"})
+		return
+	}
+
+	// 2. 调用 service 层
+	user, err := h.service.GetUser(
+		c.Request.Context(),
+		userID,
+	)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 3. 返回用户信息
+	c.JSON(200, user)
+}
+
 func (h *UserHandler) CreateUser(c *gin.Context) {
 	var req request.CreateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
