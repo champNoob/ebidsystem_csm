@@ -8,6 +8,10 @@ import (
 
 var jwtSecret = []byte("CHANGE_ME_IN_PROD") // TODO: 后期从 config 注入
 
+func JWTSecret() []byte {
+	return jwtSecret
+}
+
 // 自定义 JWT Claims
 type CustomClaims struct {
 	UserID int64  `json:"user_id"`

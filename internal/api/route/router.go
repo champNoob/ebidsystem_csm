@@ -2,6 +2,7 @@ package route
 
 import (
 	"ebidsystem_csm/internal/api/handler"
+	"ebidsystem_csm/internal/middleware"
 	"ebidsystem_csm/internal/pkg/database"
 	"ebidsystem_csm/internal/repository/mysql"
 	"ebidsystem_csm/internal/service"
@@ -18,16 +19,33 @@ func SetupRouter() *gin.Engine {
 	userService := service.NewUserService(userRepo)
 	userHandler := handler.NewUserHandler(userService)
 
-	// === 路由注册 ===
+	// === 注册路由 ===
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"status": "ok",
 		})
 	})
 
-	r.GET("/users/:id", userHandler.GetUser)
+	// r.GET("/users/:id", userHandler.GetUser)
 	r.POST("/users", userHandler.CreateUser)
 	r.POST("/login", userHandler.Login)
+
+	// === 需要登录 ===
+	auth := r.Group("/")
+	auth.Use(middleware.JWTAuthMiddleware())
+	{
+		auth.GET("/users/:id", userHandler.GetUser)
+	}
+
+	// === 需要 admin 权限 ===
+	admin := r.Group("/admin")
+	admin.Use(
+		middleware.JWTAuthMiddleware(),
+		middleware.RoleMiddleware("admin"),
+	)
+	{
+		admin.GET("/users/:id", userHandler.GetUser)
+	}
 
 	return r
 }
