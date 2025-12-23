@@ -49,6 +49,11 @@ func SetupRouter() *gin.Engine {
 		auth.RequireRole("client", "seller", "trader", "admin"),
 		orderHandler.ListOrders,
 	)
+	api.POST(
+		"/orders/:id/cancel",
+		auth.RequireRole("client", "seller", "trader", "admin"),
+		orderHandler.CancelOrder,
+	)
 
 	// === 管理员接口 ===
 	admin := r.Group("/api/admin")
