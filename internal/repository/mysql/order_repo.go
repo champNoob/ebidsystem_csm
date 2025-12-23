@@ -22,7 +22,7 @@ VALUES (?, ?, ?, ?, ?, ?)
 	_, err := r.db.ExecContext(
 		ctx,
 		query,
-		o.CreatorID,
+		o.UserID,
 		o.Symbol,
 		o.Side,
 		o.Price,
@@ -49,7 +49,7 @@ func (r *OrderRepo) FindByUserID(ctx context.Context, userID int64) ([]*model.Or
 		var o model.Order
 		if err := rows.Scan(
 			&o.ID,
-			&o.CreatorID,
+			&o.UserID,
 			&o.Symbol,
 			&o.Side,
 			&o.Price,
@@ -79,7 +79,7 @@ func (r *OrderRepo) FindAll(ctx context.Context) ([]*model.Order, error) {
 		var o model.Order
 		if err := rows.Scan(
 			&o.ID,
-			&o.CreatorID,
+			&o.UserID,
 			&o.Symbol,
 			&o.Side,
 			&o.Price,

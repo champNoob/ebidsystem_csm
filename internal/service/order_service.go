@@ -18,19 +18,19 @@ func NewOrderService(repo repository.OrderRepository) *OrderService {
 // CreateOrder 下单
 func (s *OrderService) CreateOrder(
 	ctx context.Context,
-	creatorID int64,
+	userID int64,
 	symbol, side string,
 	price float64,
 	quantity int64,
 ) error {
 
 	order := &model.Order{
-		CreatorID: creatorID,
-		Symbol:    symbol,
-		Side:      side,
-		Price:     price,
-		Quantity:  quantity,
-		Status:    "pending",
+		UserID:   userID,
+		Symbol:   symbol,
+		Side:     side,
+		Price:    price,
+		Quantity: quantity,
+		Status:   "pending",
 	}
 
 	return s.repo.Create(ctx, order)

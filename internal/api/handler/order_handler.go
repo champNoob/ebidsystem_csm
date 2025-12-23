@@ -23,11 +23,11 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		return
 	}
 
-	creatorID := c.GetInt64("creatorID")
+	userID := c.GetInt64("userID")
 
 	if err := h.service.CreateOrder(
 		c.Request.Context(),
-		creatorID,
+		userID,
 		req.Symbol,
 		req.Side,
 		req.Price,
@@ -41,12 +41,12 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 }
 
 func (h *OrderHandler) ListOrders(c *gin.Context) {
-	creatorID := c.GetInt64("creatorID")
+	userID := c.GetInt64("userID")
 	role := c.GetString("role")
 
 	orders, err := h.service.ListOrders(
 		c.Request.Context(),
-		creatorID,
+		userID,
 		role,
 	)
 	if err != nil {
