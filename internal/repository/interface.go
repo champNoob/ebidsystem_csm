@@ -11,3 +11,9 @@ type UserRepository interface {
 	FindByUsername(ctx context.Context, username string) (*model.User, error)
 	Create(ctx context.Context, user *model.User) error
 }
+
+type OrderRepository interface {
+	Create(ctx context.Context, order *model.Order) error
+	FindByUserID(ctx context.Context, userID int64) ([]*model.Order, error)
+	FindAll(ctx context.Context) ([]*model.Order, error)
+}

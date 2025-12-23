@@ -19,6 +19,10 @@ func SetupRouter() *gin.Engine {
 	userService := service.NewUserService(userRepo)
 	userHandler := handler.NewUserHandler(userService)
 
+	orderRepo := mysql.NewOrderRepo(database.MySQL)
+	orderService := service.NewOrderService(orderRepo)
+	orderHandler := handler.NewOrderHandler(orderService)
+
 	// === 注册路由 ===
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{
@@ -32,8 +36,19 @@ func SetupRouter() *gin.Engine {
 	// === 需要登录 ===
 	api := r.Group("/api")
 	api.Use(auth.JWTAuthMiddleware())
-
+	// 用户侧：
 	api.GET("/me", userHandler.GetMe)
+	// 订单侧：
+	api.POST(
+		"/orders",
+		auth.RequireRole("client", "seller", "trader"),
+		orderHandler.CreateOrder,
+	)
+	api.GET(
+		"/orders",
+		auth.RequireRole("client", "seller", "trader", "admin"),
+		orderHandler.ListOrders,
+	)
 
 	// === 管理员接口 ===
 	admin := r.Group("/api/admin")
