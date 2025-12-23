@@ -4,8 +4,13 @@
 
 ## 项目结构
 
+### 文件结构
+
 ```txt
 ebidsystem_csm/
+├── bin/                        # 编译后的二进制文件（.gitignore）
+│   └── myapp
+│
 ├── cmd/                        # 应用程序入口（支持多程序入口）
 │   ├── cli/                      # 命令行工具（暂不实现）
 │   │   └── main.go
@@ -13,6 +18,18 @@ ebidsystem_csm/
 │       ├── main.go                 # 主入口文件
 │       ├── wire.go                 # Wire依赖定义（暂不实现）
 │       └── wire_gen.go             # Wire生成的代码（.gitignore）
+│
+├── deployments/                # 部署配置
+│   ├── docker/
+│   │   ├── Dockerfile
+│   │   └── docker-compose.yml
+│   ├── k8s/
+│   └── nginx/
+│
+├── docs/                       # 文档
+│   ├── api/
+│   ├── architecture/
+│   └── database/
 │
 ├── internal/                   # 私有应用程序代码（外部不可导入）
 │   ├── api/                      # HTTP接口层
@@ -97,6 +114,11 @@ ebidsystem_csm/
 │       ├── local_cache.go          # 本地缓存
 │       └── distributed_lock.go     # 分布式锁
 │
+├── log/                        # 日志文件目录（.gitignore）
+│   ├── app/
+│   ├── access/
+│   └── error/
+│
 ├── pkg/                        # 公共库包（可被外部项目引用）
 │   ├── errors/                   # 自定义错误类型
 │   ├── pagination/               # 分页组件
@@ -107,38 +129,18 @@ ebidsystem_csm/
 │   ├── migration/
 │   └── build.sh
 │
+├── storage/                    # 存储目录（上传文件等，.gitignore）
+│   ├── uploads/
+│   └── cache/
+│
+├── tmp/                        # 临时文件（.gitignore）
+│
 ├── test/                       # 测试文件
 │   ├── e2e/                      # 端到端测试
 │   └── integration/              # 集成测试
 │
 ├── web/                        # Web资源（可选）
 │   └── static/
-│
-├── deployments/                # 部署配置
-│   ├── docker/
-│   │   ├── Dockerfile
-│   │   └── docker-compose.yml
-│   ├── k8s/
-│   └── nginx/
-│
-├── docs/                       # 文档
-│   ├── api/
-│   ├── architecture/
-│   └── database/
-│
-├── bin/                        # 编译后的二进制文件（.gitignore）
-│   └── myapp
-│
-├── log/                        # 日志文件目录（.gitignore）
-│   ├── app/
-│   ├── access/
-│   └── error/
-│
-├── tmp/                        # 临时文件（.gitignore）
-│
-├── storage/                    # 存储目录（上传文件等，.gitignore）
-│   ├── uploads/
-│   └── cache/
 │
 ├── .env.example                # 环境变量示例
 ├── .env.local                  # 本地环境配置（.gitignore）
@@ -147,3 +149,11 @@ ebidsystem_csm/
 ├── Makefile                    # 构建命令
 ├── README.md
 └── .gitignore
+```
+
+### 分层架构
+
+![分层架构图](https://www.plantuml.com/plantuml/png/bP9DJiCm48NtFiMecxQBbXkW_bI2I4L08rR0mdAcgLN7YSOEA0As780ZSX9AdBgkKHPidz_CfyoNcR6SR5qePgLL2BYG6QIDiLZ019Ob8QomGfsX5Wsi9C-95uoPlTGL9rv0nSMUvvZQHY4G2ijrhZ0ec1tFobUfSzXoPP2nRW86yxi4rhn1UjAZAwdXckjC8Pdn0DuO0C3ZWq7gqcUNt58MH_FQxdpo4UnFaLwaGCzOr4PgD0RMPIx5EQNhXXGVUOfFGie6gz98MrBZGOcsI5ikq7Y8F4RmIplDH8yjE7Zj0IL5fGwScoQzNyC5R32JuTKwWdiV1z_K5o-vsE78hJd_kaHlYHjBjR0reKSuychHBMadsy7XqI9yVtv1Tp1s9X8caylew5whByGE0ikk41bXmoEi1GUtyZ9Oo7Gx8XUUUMh4GWwSo4FB2o7HzM4wVUyXnRL_u48hVvdkG5vIXEjl1F-1gtYrCzHPNQWV
+)
+
+系统采用分层架构，Handler 仅依赖 Service，Service 仅依赖 Repository 接口，具体存储实现可替换。

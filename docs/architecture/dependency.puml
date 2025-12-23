@@ -1,0 +1,53 @@
+@startuml
+title eBid System - Core Dependency Diagram
+
+skinparam packageStyle rectangle
+skinparam shadowing false
+
+package "API Layer\n(Gin Handlers)" {
+    [UserHandler]
+    [OrderHandler]
+    [AuthHandler]
+}
+
+package "Service Layer\n(Business Logic)" {
+    [UserService]
+    [OrderService]
+    [AuthService]
+}
+
+package "Repository Layer\n(Interfaces)" {
+    interface UserRepository
+    interface OrderRepository
+}
+
+package "Repository Impl\n(MySQL / Redis)" {
+    [UserRepo(MySQL)]
+    [OrderRepo(MySQL)]
+    [OrderCache(Redis)]
+}
+
+package "Infrastructure" {
+    [MySQL DB]
+    [Redis]
+}
+
+' Handler → Service
+[UserHandler] --> [UserService]
+[OrderHandler] --> [OrderService]
+[AuthHandler] --> [AuthService]
+
+' Service → Repository Interface
+[UserService] --> UserRepository
+[OrderService] --> OrderRepository
+
+' Repository Impl → Interface
+[UserRepo(MySQL)] ..|> UserRepository
+[OrderRepo(MySQL)] ..|> OrderRepository
+
+' Repository Impl → Infrastructure
+[UserRepo(MySQL)] --> [MySQL DB]
+[OrderRepo(MySQL)] --> [MySQL DB]
+[OrderCache(Redis)] --> [Redis]
+
+@enduml
