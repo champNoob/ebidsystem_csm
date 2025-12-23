@@ -30,7 +30,7 @@ func (s *OrderService) CreateOrder(
 		Side:     side,
 		Price:    price,
 		Quantity: quantity,
-		Status:   "pending",
+		Status:   model.OrderStatusPending,
 	}
 
 	return s.repo.Create(ctx, order)
@@ -67,7 +67,7 @@ func (s *OrderService) CancelOrder(
 	}
 
 	// 1. 状态校验
-	if order.Status != "pending" {
+	if !order.Status.CanCancel() { // 订单强类型
 		return ErrOrderNotCancelable
 	}
 
@@ -77,5 +77,5 @@ func (s *OrderService) CancelOrder(
 	}
 
 	// 3. 状态更新
-	return s.repo.UpdateStatus(ctx, orderID, "canceled")
+	return s.repo.UpdateStatus(ctx, orderID, string(model.OrderStatusCanceled))
 }

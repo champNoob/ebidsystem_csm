@@ -148,3 +148,87 @@ pending → filled（未实现）
 * ❌ 为了快而 swallow error
 * ❌ 在撮合里 panic
 * ❌ 忽略边界订单（0 quantity、极限价格）
+
+## 订单强类型
+
+这一步性价比非常高，而且你已经到了“该做”的节点。
+
+### 现在的隐性风险
+
+假设 status 是 string：
+
+```go
+if order.Status == "pending" {
+  ...
+}
+```
+
+那么下面这些问题迟早会出现：
+
+|问题|发生概率|
+|----|------|
+"Pending" vs "pending"|	高
+"cancelled" vs "canceled"|	高
+新人误写字符串|	高
+状态扩展时忘记改所有分支|	高
+
+### 强类型带来的直接收益
+
+#### 1. 编译期兜底（不是运行期）
+
+```go
+const (
+	OrderStatusPending  OrderStatus = "pending"
+	OrderStatusCanceled OrderStatus = "canceled"
+	OrderStatusFilled   OrderStatus = "filled"
+)
+```
+
+然后：
+
+```go
+switch order.Status {
+case OrderStatusPending:
+case OrderStatusCanceled:
+default:
+	panic("unknown order status")
+}
+```
+
+任何拼写错误，IDE 和编译器立刻提示。
+
+#### 2. 业务规则集中化（非常重要）
+
+你之后会写：
+
+- 能否 cancel？
+
+- 能否 match？
+
+- 能否 modify？
+
+> 如果 status 是散落的字符串，那么业务规则会碎成一`if-else`
+
+如果是强类型：
+
+```go
+func (s OrderStatus) CanCancel() bool {
+	return s == OrderStatusPending
+}
+```
+
+> 规则位置唯一、可读性极强。
+
+### 对当前阶段的判断
+
+已经有：
+
+- create order
+
+- list order
+
+- cancel order
+
+`status` 已经参与真实业务判断
+
+这是引入强类型的最佳时间点，不早也不晚。
