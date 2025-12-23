@@ -93,3 +93,38 @@ func (r *OrderRepo) FindAll(ctx context.Context) ([]*model.Order, error) {
 	}
 	return orders, nil
 }
+
+func (r *OrderRepo) FindByID(ctx context.Context, id int64) (*model.Order, error) {
+	row := r.db.QueryRowContext(
+		ctx,
+		`SELECT id, user_id, symbol, side, price, quantity, status, created_at
+		 FROM orders WHERE id = ?`,
+		id,
+	)
+
+	var o model.Order
+	if err := row.Scan(
+		&o.ID,
+		&o.UserID,
+		&o.Symbol,
+		&o.Side,
+		&o.Price,
+		&o.Quantity,
+		&o.Status,
+		&o.CreatedAt,
+	); err != nil {
+		return nil, err
+	}
+
+	return &o, nil
+}
+
+func (r *OrderRepo) UpdateStatus(ctx context.Context, id int64, status string) error {
+	_, err := r.db.ExecContext(
+		ctx,
+		`UPDATE orders SET status = ? WHERE id = ?`,
+		status,
+		id,
+	)
+	return err
+}

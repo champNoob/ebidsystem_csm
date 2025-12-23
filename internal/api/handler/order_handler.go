@@ -4,6 +4,7 @@ import (
 	"ebidsystem_csm/internal/api/dto/request"
 	"ebidsystem_csm/internal/service"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -55,4 +56,36 @@ func (h *OrderHandler) ListOrders(c *gin.Context) {
 	}
 
 	c.JSON(200, orders)
+}
+
+func (h *OrderHandler) CancelOrder(c *gin.Context) {
+	orderID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "invalid order id"})
+		return
+	}
+
+	userID := c.GetInt64("userID")
+	role := c.GetString("role")
+
+	err = h.service.CancelOrder(
+		c.Request.Context(),
+		orderID,
+		userID,
+		role,
+	)
+
+	if err != nil {
+		switch err {
+		case service.ErrOrderNotFound:
+			c.JSON(404, gin.H{"error": err.Error()})
+		case service.ErrOrderNotCancelable, service.ErrPermissionDenied:
+			c.JSON(403, gin.H{"error": err.Error()})
+		default:
+			c.JSON(500, gin.H{"error": "internal error"})
+		}
+		return
+	}
+
+	c.JSON(200, gin.H{"message": "order canceled"})
 }

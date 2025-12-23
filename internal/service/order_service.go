@@ -30,7 +30,7 @@ func (s *OrderService) CreateOrder(
 		Side:     side,
 		Price:    price,
 		Quantity: quantity,
-		Status:   "pending",
+		Status:   model.OrderStatusPending,
 	}
 
 	return s.repo.Create(ctx, order)
@@ -52,4 +52,30 @@ func (s *OrderService) ListOrders(
 	}
 
 	return nil, errors.New("unauthorized role")
+}
+
+func (s *OrderService) CancelOrder(
+	ctx context.Context,
+	orderID int64,
+	userID int64,
+	role string,
+) error {
+
+	order, err := s.repo.FindByID(ctx, orderID)
+	if err != nil {
+		return ErrOrderNotFound
+	}
+
+	// 1. 状态校验
+	if !order.Status.CanCancel() { // 订单强类型
+		return ErrOrderNotCancelable
+	}
+
+	// 2. 权限校验
+	if role != "admin" && order.UserID != userID {
+		return ErrPermissionDenied
+	}
+
+	// 3. 状态更新
+	return s.repo.UpdateStatus(ctx, orderID, string(model.OrderStatusCanceled))
 }

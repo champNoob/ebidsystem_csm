@@ -16,4 +16,6 @@ type OrderRepository interface {
 	Create(ctx context.Context, order *model.Order) error
 	FindByUserID(ctx context.Context, userID int64) ([]*model.Order, error)
 	FindAll(ctx context.Context) ([]*model.Order, error)
+	FindByID(ctx context.Context, id int64) (*model.Order, error)
+	UpdateStatus(ctx context.Context, id int64, status string) error
 }
