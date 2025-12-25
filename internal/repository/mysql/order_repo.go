@@ -14,12 +14,12 @@ func NewOrderRepo(db *sql.DB) *OrderRepo {
 	return &OrderRepo{db: db}
 }
 
-func (r *OrderRepo) Create(ctx context.Context, o *model.Order) error {
+func (r *OrderRepo) Create(ctx context.Context, o *model.Order) (uint64, error) {
 	query := `
 INSERT INTO orders (user_id, symbol, side, price, quantity, status)
 VALUES (?, ?, ?, ?, ?, ?)
 `
-	_, err := r.db.ExecContext(
+	result, err := r.db.ExecContext(
 		ctx,
 		query,
 		o.UserID,
@@ -29,7 +29,15 @@ VALUES (?, ?, ?, ?, ?, ?)
 		o.Quantity,
 		o.Status,
 	)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	// 获取新插入的 ID：
+	id, err := result.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	return uint64(id), nil
 }
 
 func (r *OrderRepo) FindByUserID(ctx context.Context, userID int64) ([]*model.Order, error) {

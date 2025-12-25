@@ -1,6 +1,8 @@
 package matching
 
-import "log"
+import (
+	"log"
+)
 
 type Engine struct {
 	orderCh chan *Order
@@ -28,7 +30,8 @@ func (e *Engine) Start() {
 
 			for _, ev := range events {
 				log.Printf(
-					"matched buy=%d sell=%d price=%.2f qty=%d",
+					"[MATCH] symbol=%s buy=%d sell=%d price=%.2f qty=%d",
+					order.Symbol,
 					ev.BuyOrderID,
 					ev.SellOrderID,
 					ev.Price,
@@ -39,6 +42,10 @@ func (e *Engine) Start() {
 	}()
 }
 
-func (e *Engine) Submit(order *Order) {
+func (e *Engine) Submit(order *Order) error {
+	if order.Type == OrderTypeMarket {
+		return ErrMarketOrderNotSupported
+	}
 	e.orderCh <- order
+	return nil
 }

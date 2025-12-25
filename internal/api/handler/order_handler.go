@@ -30,7 +30,8 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		c.Request.Context(),
 		userID,
 		req.Symbol,
-		req.Side,
+		req.OrderType,
+		req.OrderSide,
 		req.Price,
 		req.Quantity,
 	); err != nil {

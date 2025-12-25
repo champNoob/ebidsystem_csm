@@ -1,19 +1,29 @@
 package matching
 
-import "time"
+import (
+	"time"
+)
 
-type Side string
+type OrderType string
 
 const (
-	Buy  Side = "buy"
-	Sell Side = "sell"
+	OrderTypeLimit  OrderType = "limit"
+	OrderTypeMarket OrderType = "market"
+)
+
+type OrderSide string
+
+const (
+	OrderSideBuy  OrderSide = "buy"
+	OrderSideSell OrderSide = "sell"
 )
 
 type Order struct {
 	ID        uint64
 	UserID    uint64
 	Symbol    string
-	Side      Side
+	Type      OrderType
+	Side      OrderSide
 	Price     float64
 	Quantity  int64
 	CreatedAt time.Time

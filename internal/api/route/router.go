@@ -3,25 +3,16 @@ package route
 import (
 	"ebidsystem_csm/internal/api/handler"
 	"ebidsystem_csm/internal/middleware/auth"
-	"ebidsystem_csm/internal/pkg/database"
-	"ebidsystem_csm/internal/repository/mysql"
-	"ebidsystem_csm/internal/service"
 
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRouter() *gin.Engine {
+func SetupRouter(
+	userHandler *handler.UserHandler,
+	orderHandler *handler.OrderHandler,
+) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Recovery())
-
-	// === 装配依赖 ===
-	userRepo := mysql.NewUserRepo(database.MySQL)
-	userService := service.NewUserService(userRepo)
-	userHandler := handler.NewUserHandler(userService)
-
-	orderRepo := mysql.NewOrderRepo(database.MySQL)
-	orderService := service.NewOrderService(orderRepo)
-	orderHandler := handler.NewOrderHandler(orderService)
 
 	// === 注册路由 ===
 	r.GET("/health", func(c *gin.Context) {

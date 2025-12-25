@@ -14,7 +14,7 @@ func NewOrderBook() *OrderBook {
 }
 
 func (ob *OrderBook) AddOrder(o *Order) {
-	if o.Side == Buy {
+	if o.Side == OrderSideBuy {
 		ob.buyOrders = append(ob.buyOrders, o)
 	} else {
 		ob.sellOrders = append(ob.sellOrders, o)
