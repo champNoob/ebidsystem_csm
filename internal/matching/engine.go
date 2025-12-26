@@ -30,7 +30,7 @@ func (e *Engine) Start() {
 
 			for _, ev := range events {
 				log.Printf(
-					"[MATCH] symbol=%s buy=%d sell=%d price=%.2f qty=%d",
+					"[MATCH] symbol=%s buySideID=%d sellSideID=%d price=%.2f quantity=%d",
 					order.Symbol,
 					ev.BuyOrderID,
 					ev.SellOrderID,
