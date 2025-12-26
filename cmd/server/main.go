@@ -38,6 +38,7 @@ func main() {
 	// 5. 初始化服务层（service）
 	orderService := service.NewOrderService(orderRepo, engine)
 	userService := service.NewUserService(userRepo)
+	orderService.StartMatchEventListener() //启动撮合事件监听器
 
 	// 6. 初始化处理器（Handler）
 	userHandler := handler.NewUserHandler(userService)

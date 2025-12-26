@@ -1,5 +1,6 @@
 package matching
 
+// 一次成功的撮合成交
 type MatchEvent struct {
 	BuyOrderID  uint64
 	SellOrderID uint64

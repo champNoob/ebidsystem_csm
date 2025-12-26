@@ -6,6 +6,7 @@ import (
 	"ebidsystem_csm/internal/model"
 	"ebidsystem_csm/internal/repository"
 	"errors"
+	"log"
 )
 
 type OrderService struct {
@@ -112,4 +113,56 @@ func (s *OrderService) CancelOrder(
 
 	// 3. 状态更新
 	return s.repo.UpdateStatus(ctx, orderID, string(model.OrderStatusCanceled))
+}
+
+// 启动撮合事件监听器：
+func (s *OrderService) StartMatchEventListener() {
+	go func() {
+		ctx := context.Background()
+		for {
+			select {
+			case ev := <-s.matcher.Events():
+				// log.Default().Print("matching event catched")//--
+				if err := s.handleMatchEvent(ctx, ev); err != nil {
+					log.Printf("[MATCH_EVENT_ERROR] %v", err)
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+}
+
+// 处理撮合事件：
+func (s *OrderService) handleMatchEvent(
+	ctx context.Context,
+	ev matching.MatchEvent,
+) error {
+
+	// 1. 更新买单
+	if err := s.repo.FillOrder(
+		ctx,
+		ev.BuyOrderID,
+		ev.Quantity,
+	); err != nil {
+		return err
+	}
+
+	// 2. 更新卖单
+	if err := s.repo.FillOrder(
+		ctx,
+		ev.SellOrderID,
+		ev.Quantity,
+	); err != nil {
+		return err
+	}
+
+	// 3. 写成交记录
+	trade := &model.Trade{
+		BuyOrderID:  ev.BuyOrderID,
+		SellOrderID: ev.SellOrderID,
+		Price:       ev.Price,
+		Quantity:    ev.Quantity,
+	}
+	return s.repo.CreateTrade(ctx, trade)
 }

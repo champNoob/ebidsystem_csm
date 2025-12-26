@@ -18,4 +18,6 @@ type OrderRepository interface {
 	FindAll(ctx context.Context) ([]*model.Order, error)
 	FindByID(ctx context.Context, id int64) (*model.Order, error)
 	UpdateStatus(ctx context.Context, id int64, status string) error
+	FillOrder(ctx context.Context, orderID uint64, filledQty int64) error
+	CreateTrade(ctx context.Context, trade *model.Trade) error
 }

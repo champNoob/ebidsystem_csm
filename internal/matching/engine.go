@@ -6,12 +6,14 @@ import (
 
 type Engine struct {
 	orderCh chan *Order
+	eventCh chan MatchEvent
 	books   map[string]*OrderBook
 }
 
 func NewEngine() *Engine {
 	return &Engine{
 		orderCh: make(chan *Order, 1024),
+		eventCh: make(chan MatchEvent, 1024),
 		books:   make(map[string]*OrderBook),
 	}
 }
@@ -37,6 +39,7 @@ func (e *Engine) Start() {
 					ev.Price,
 					ev.Quantity,
 				)
+				e.eventCh <- ev
 			}
 		}
 	}()
@@ -48,4 +51,8 @@ func (e *Engine) Submit(order *Order) error {
 	}
 	e.orderCh <- order
 	return nil
+}
+
+func (e *Engine) Events() <-chan MatchEvent {
+	return e.eventCh
 }
