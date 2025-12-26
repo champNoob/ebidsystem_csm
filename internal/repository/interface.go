@@ -13,7 +13,7 @@ type UserRepository interface {
 }
 
 type OrderRepository interface {
-	Create(ctx context.Context, order *model.Order) error
+	Create(ctx context.Context, order *model.Order) (uint64, error)
 	FindByUserID(ctx context.Context, userID int64) ([]*model.Order, error)
 	FindAll(ctx context.Context) ([]*model.Order, error)
 	FindByID(ctx context.Context, id int64) (*model.Order, error)
