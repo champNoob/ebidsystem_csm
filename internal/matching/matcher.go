@@ -1,7 +1,7 @@
 package matching
 
-func (ob *OrderBook) Match() []*MatchEvent {
-	events := make([]*MatchEvent, 0)
+func (ob *OrderBook) Match() []MatchEvent {
+	events := make([]MatchEvent, 0)
 
 	for len(ob.buyOrders) > 0 && len(ob.sellOrders) > 0 {
 		buy := ob.buyOrders[0]
@@ -12,7 +12,7 @@ func (ob *OrderBook) Match() []*MatchEvent {
 		}
 
 		// 成交（简化：全量成交）
-		events = append(events, &MatchEvent{
+		events = append(events, MatchEvent{
 			BuyOrderID:  buy.ID,
 			SellOrderID: sell.ID,
 			Price:       sell.Price,

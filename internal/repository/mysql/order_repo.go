@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"ebidsystem_csm/internal/model"
+	"log"
 )
 
 type OrderRepo struct {
@@ -16,8 +17,8 @@ func NewOrderRepo(db *sql.DB) *OrderRepo {
 
 func (r *OrderRepo) Create(ctx context.Context, o *model.Order) (uint64, error) {
 	query := `
-INSERT INTO orders (user_id, symbol, side, price, quantity, status)
-VALUES (?, ?, ?, ?, ?, ?)
+INSERT INTO orders (user_id, symbol, side, price, quantity, filled_quantity, status)
+VALUES (?, ?, ?, ?, ?, 0, ?)
 `
 	result, err := r.db.ExecContext(
 		ctx,
@@ -27,7 +28,7 @@ VALUES (?, ?, ?, ?, ?, ?)
 		o.Side,
 		o.Price,
 		o.Quantity,
-		o.Status,
+		model.OrderStatusPending, // 使用定义好的常量
 	)
 	if err != nil {
 		return 0, err
@@ -43,7 +44,7 @@ VALUES (?, ?, ?, ?, ?, ?)
 func (r *OrderRepo) FindByUserID(ctx context.Context, userID int64) ([]*model.Order, error) {
 	rows, err := r.db.QueryContext(
 		ctx,
-		`SELECT id, user_id, symbol, side, price, quantity, status, created_at
+		`SELECT id, user_id, symbol, side, price, quantity, filled_quantity, status, created_at
 		 FROM orders WHERE user_id = ?`,
 		userID,
 	)
@@ -118,6 +119,7 @@ func (r *OrderRepo) FindByID(ctx context.Context, id int64) (*model.Order, error
 		&o.Side,
 		&o.Price,
 		&o.Quantity,
+		&o.FilledQuantity,
 		&o.Status,
 		&o.CreatedAt,
 	); err != nil {
@@ -133,6 +135,41 @@ func (r *OrderRepo) UpdateStatus(ctx context.Context, id int64, status string) e
 		`UPDATE orders SET status = ? WHERE id = ?`,
 		status,
 		id,
+	)
+	return err
+}
+
+func (r *OrderRepo) FillOrder(ctx context.Context, orderID uint64, filledQty int64) error {
+	_, err := r.db.ExecContext(
+		ctx,
+		// "filled_quantity + ?" 必须写两次（MySQL 不支持引用更新后的列）：
+		`UPDATE orders
+		SET
+		  filled_quantity = filled_quantity + ?,
+		  status = CASE
+		    WHEN filled_quantity + ? >= quantity THEN 'filled'
+		    ELSE 'partial'
+		  END
+		WHERE id = ? AND status IN ('pending', 'partial');`,
+		filledQty,
+		filledQty,
+		orderID,
+	)
+	if err != nil {
+		log.Printf("[DB_ERROR] update order %d failed: %v", orderID, err)
+		return err
+	}
+	return err
+}
+
+func (r *OrderRepo) CreateTrade(ctx context.Context, trade *model.Trade) error {
+	_, err := r.db.ExecContext(
+		ctx,
+		`INSERT INTO trades (buy_order_id, sell_order_id, price, quantity) VALUES (?, ?, ?, ?)`,
+		trade.BuyOrderID,
+		trade.SellOrderID,
+		trade.Price,
+		trade.Quantity,
 	)
 	return err
 }
