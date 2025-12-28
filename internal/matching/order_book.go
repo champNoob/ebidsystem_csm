@@ -19,4 +19,5 @@ func (ob *OrderBook) AddOrder(o *Order) {
 	} else {
 		ob.sellOrders = append(ob.sellOrders, o)
 	}
+	o.Remaining = o.Quantity
 }

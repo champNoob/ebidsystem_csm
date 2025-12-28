@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"ebidsystem_csm/internal/model"
-	"log"
 )
 
 type OrderRepo struct {
@@ -139,26 +138,29 @@ func (r *OrderRepo) UpdateStatus(ctx context.Context, id int64, status string) e
 	return err
 }
 
-func (r *OrderRepo) FillOrder(ctx context.Context, orderID uint64, filledQty int64) error {
+func (r *OrderRepo) FillOrder(
+	ctx context.Context,
+	orderID uint64,
+	filledQty int64,
+) error {
+
 	_, err := r.db.ExecContext(
 		ctx,
-		// "filled_quantity + ?" 必须写两次（MySQL 不支持引用更新后的列）：
-		`UPDATE orders
+		`
+		UPDATE orders
 		SET
-		  filled_quantity = filled_quantity + ?,
-		  status = CASE
-		    WHEN filled_quantity + ? >= quantity THEN 'filled'
-		    ELSE 'partial'
-		  END
-		WHERE id = ? AND status IN ('pending', 'partial');`,
+			filled_quantity = filled_quantity + ?,
+			status = CASE
+				WHEN filled_quantity + ? >= quantity THEN 'filled'
+				ELSE 'partial'
+			END,
+			updated_at = NOW()
+		WHERE id = ?
+		`,
 		filledQty,
 		filledQty,
 		orderID,
 	)
-	if err != nil {
-		log.Printf("[DB_ERROR] update order %d failed: %v", orderID, err)
-		return err
-	}
 	return err
 }
 
