@@ -68,7 +68,7 @@ func (h *OrderHandler) CancelOrder(c *gin.Context) {
 
 	userID := c.GetInt64("userID")
 	role := c.GetString("role")
-
+	// 调用服务层对应的函数：
 	err = h.service.CancelOrder(
 		c.Request.Context(),
 		orderID,
@@ -80,7 +80,7 @@ func (h *OrderHandler) CancelOrder(c *gin.Context) {
 		switch err {
 		case service.ErrOrderNotFound:
 			c.JSON(404, gin.H{"error": err.Error()})
-		case service.ErrOrderNotCancelable, service.ErrPermissionDenied:
+		case service.ErrOrderNotCancellable, service.ErrPermissionDenied:
 			c.JSON(403, gin.H{"error": err.Error()})
 		default:
 			c.JSON(500, gin.H{"error": "internal error"})
