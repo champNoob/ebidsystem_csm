@@ -12,6 +12,6 @@ type Order struct {
 	Price          *float64    `json:"price"`           // 价格
 	Quantity       int64       `json:"quantity"`        // 数量
 	FilledQuantity int64       `json:"filled_quantity"` // 已成交数量
-	Status         OrderStatus `json:"status"`          // pending / canceled / filled（先用 pending）
+	Status         OrderStatus `json:"status"`          // pending（默认） / canceled / filled / partial
 	CreatedAt      time.Time   `json:"created_at"`
 }

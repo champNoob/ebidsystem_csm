@@ -4,6 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"ebidsystem_csm/internal/model"
+	"ebidsystem_csm/internal/service"
+	"fmt"
+	"log"
 )
 
 type OrderRepo struct {
@@ -15,6 +18,7 @@ func NewOrderRepo(db *sql.DB) *OrderRepo {
 }
 
 func (r *OrderRepo) Create(ctx context.Context, o *model.Order) (uint64, error) {
+
 	query := `
 INSERT INTO orders (user_id, symbol, side, price, quantity, filled_quantity, status)
 VALUES (?, ?, ?, ?, ?, 0, ?)
@@ -105,7 +109,7 @@ func (r *OrderRepo) FindAll(ctx context.Context) ([]*model.Order, error) {
 func (r *OrderRepo) FindByID(ctx context.Context, id int64) (*model.Order, error) {
 	row := r.db.QueryRowContext(
 		ctx,
-		`SELECT id, user_id, symbol, side, price, quantity, status, created_at
+		`SELECT id, user_id, symbol, side, price, quantity, filled_quantity, status, created_at
 		 FROM orders WHERE id = ?`,
 		id,
 	)
@@ -143,25 +147,86 @@ func (r *OrderRepo) FillOrder(
 	orderID uint64,
 	filledQty int64,
 ) error {
+	log.Printf( //x
+		"[FILL_ORDER] orderID=%d filledQty=%d",
+		orderID, filledQty,
+	)
+	// 先查询订单当前状态和数量，用于更精确的错误信息
+	var currentStatus string
+	var filledQuantity, quantity int64
+	err := r.db.QueryRowContext(ctx,
+		"SELECT status, filled_quantity, quantity FROM orders WHERE id = ?",
+		orderID,
+	).Scan(&currentStatus, &filledQuantity, &quantity)
+	if err == sql.ErrNoRows {
+		return service.ErrOrderNotFound
+	}
+	if err != nil {
+		return err
+	}
+	// 添加详细日志
+	log.Printf(
+		"[FILL_ORDER_DETAIL] orderID=%d, currentStatus=%s, filledQuantity=%d, quantity=%d, filledQty=%d, newTotal=%d",
+		orderID, currentStatus, filledQuantity, quantity, filledQty, filledQuantity+filledQty,
+	)
+	// 检查订单状态
+	if currentStatus == "cancelled" || currentStatus == "filled" {
+		return fmt.Errorf("order %d is already %s", orderID, currentStatus)
+	}
+	// 检查是否会超额填充
+	if filledQuantity+filledQty > quantity {
+		return service.ErrOrderOverFilled
+	}
 
-	_, err := r.db.ExecContext(
+	newFilled := filledQuantity + filledQty
+	var newStatus string
+	if newFilled >= quantity {
+		newStatus = string(model.OrderStatusFilled)
+	} else {
+		newStatus = string(model.OrderStatusPartial)
+	}
+	res, err := r.db.ExecContext(
 		ctx,
-		`
-		UPDATE orders
-		SET
-			filled_quantity = filled_quantity + ?,
-			status = CASE
-				WHEN filled_quantity + ? >= quantity THEN 'filled'
-				ELSE 'partial'
-			END,
-			updated_at = NOW()
-		WHERE id = ?
-		`,
-		filledQty,
-		filledQty,
+		`UPDATE orders
+		SET filled_quantity = ?, status = ?, updated_at = NOW()
+		WHERE id = ? AND status IN ('pending', 'partial')`,
+		newFilled,
+		newStatus,
 		orderID,
 	)
-	return err
+
+	if err != nil {
+		return err
+	}
+
+	rows, err := res.RowsAffected()
+	if err != nil {
+		log.Printf("[FILL_ORDER_ERROR] RowsAffected error: %v", err)
+		return err
+	}
+	log.Printf("[FILL_ORDER_RESULT] RowsAffected: %d", rows)
+	if rows == 0 {
+		// 再查询一次看看状态是否变了
+		var afterStatus string
+		var afterFilledQuantity int64
+		r.db.QueryRowContext(ctx,
+			"SELECT status, filled_quantity FROM orders WHERE id = ?",
+			orderID,
+		).Scan(&afterStatus, &afterFilledQuantity)
+		log.Printf("[FILL_ORDER_AFTER] orderID=%d, status=%s, filled_quantity=%d",
+			orderID, afterStatus, afterFilledQuantity)
+		return service.ErrOrderUpdateFailed
+	}
+	// 查询更新后的状态
+	var finalStatus string
+	var finalFilledQuantity int64
+	r.db.QueryRowContext(ctx,
+		"SELECT status, filled_quantity FROM orders WHERE id = ?",
+		orderID,
+	).Scan(&finalStatus, &finalFilledQuantity)
+	log.Printf("[FILL_ORDER_FINAL] orderID=%d, status=%s, filled_quantity=%d",
+		orderID, finalStatus, finalFilledQuantity)
+	return nil
 }
 
 func (r *OrderRepo) CreateTrade(ctx context.Context, trade *model.Trade) error {
@@ -174,4 +239,36 @@ func (r *OrderRepo) CreateTrade(ctx context.Context, trade *model.Trade) error {
 		trade.Quantity,
 	)
 	return err
+}
+
+func (r *OrderRepo) CancelOrder(
+	ctx context.Context,
+	orderID uint64,
+) error {
+	res, err := r.db.ExecContext(
+		ctx,
+		`
+		UPDATE orders
+		SET
+			status = 'cancelled',
+			updated_at = NOW()
+		WHERE id = ?
+		  AND status IN ('pending', 'partial');
+		`,
+		orderID,
+	)
+	if err != nil {
+		return err
+	}
+
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rows == 0 {
+		return service.ErrOrderNotCancellable
+	}
+
+	return nil
 }

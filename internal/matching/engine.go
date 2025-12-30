@@ -53,6 +53,14 @@ func (e *Engine) Submit(order *Order) error {
 	return nil
 }
 
+func (e *Engine) Remove(orderID uint64, symbol string) {
+	ob, ok := e.books[symbol]
+	if !ok {
+		return
+	}
+	ob.Remove(orderID)
+}
+
 func (e *Engine) Events() <-chan MatchEvent {
 	return e.eventCh
 }

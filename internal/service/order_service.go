@@ -95,24 +95,30 @@ func (s *OrderService) CancelOrder(
 	userID int64,
 	role string,
 ) error {
-
+	// 0. 查询订单：
 	order, err := s.repo.FindByID(ctx, orderID)
 	if err != nil {
 		return ErrOrderNotFound
 	}
 
-	// 1. 状态校验
-	if !order.Status.CanCancel() { // 订单强类型
-		return ErrOrderNotCancelable
-	}
-
-	// 2. 权限校验
+	// 1. 权限校验：
 	if role != "admin" && order.UserID != userID {
 		return ErrPermissionDenied
 	}
 
-	// 3. 状态更新
-	return s.repo.UpdateStatus(ctx, orderID, string(model.OrderStatusCanceled))
+	// 2. 状态校验：
+	if !order.Status.CanCancel() { // 订单强类型
+		return ErrOrderNotCancellable
+	}
+
+	// 3. 执行撤单（原子）：
+	if err := s.repo.CancelOrder(ctx, uint64(orderID)); err != nil {
+		return err
+	}
+
+	// 4. 通知撮合引擎：
+	s.matcher.Remove(uint64(orderID), order.Symbol)
+	return nil
 }
 
 // 启动撮合事件监听器：
@@ -122,7 +128,7 @@ func (s *OrderService) StartMatchEventListener() {
 		for {
 			select {
 			case ev := <-s.matcher.Events():
-				// log.Default().Print("matching event catched")//--
+				log.Print("matching event catched") //--
 				if err := s.handleMatchEvent(ctx, ev); err != nil {
 					log.Printf("[MATCH_EVENT_ERROR] %v", err)
 				}
