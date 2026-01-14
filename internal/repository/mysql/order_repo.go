@@ -66,6 +66,7 @@ func (r *OrderRepo) FindByUserID(ctx context.Context, userID int64) ([]*model.Or
 			&o.Side,
 			&o.Price,
 			&o.Quantity,
+			&o.FilledQuantity,
 			&o.Status,
 			&o.CreatedAt,
 		); err != nil {
