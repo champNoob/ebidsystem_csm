@@ -22,12 +22,17 @@ func NewOrderService(repo repository.OrderRepository, matcher *matching.Engine) 
 func (s *OrderService) CreateOrder(
 	ctx context.Context,
 	userID int64,
+	role model.UserRole,
 	symbol string,
 	orderType model.OrderType,
 	orderSide model.OrderSide,
 	price *float64,
 	quantity int64,
 ) error {
+	// 角色×方向 校验：
+	if err := validateRoleSide(role, orderSide); err != nil {
+		return err
+	}
 	// 判断订单类型：
 	switch orderType {
 	case model.OrderTypeLimit:

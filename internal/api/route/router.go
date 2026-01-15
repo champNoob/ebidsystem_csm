@@ -3,7 +3,9 @@ package route
 import (
 	"ebidsystem_csm/internal/api/handler"
 	"ebidsystem_csm/internal/middleware/auth"
+	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -13,6 +15,16 @@ func SetupRouter(
 ) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Recovery())
+
+	// === CORS 配置 ===
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:5173"}, // 前端 Vite 地址
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Authorization", "Content-Type"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
 
 	// === 注册路由 ===
 	r.GET("/health", func(c *gin.Context) {
