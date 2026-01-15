@@ -2,6 +2,7 @@ package handler
 
 import (
 	"ebidsystem_csm/internal/api/dto/request"
+	"ebidsystem_csm/internal/model"
 	"ebidsystem_csm/internal/service"
 	"net/http"
 	"strconv"
@@ -25,10 +26,17 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	}
 
 	userID := c.GetInt64("userID")
+	roleStr := c.GetString("role")
+	role, err := model.ParseUserRole(roleStr)
+	if err != nil {
+		c.JSON(403, gin.H{"error": "invalid user role"})
+		return
+	}
 
 	if err := h.service.CreateOrder(
 		c.Request.Context(),
 		userID,
+		role,
 		req.Symbol,
 		req.OrderType,
 		req.OrderSide,

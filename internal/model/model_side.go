@@ -3,6 +3,6 @@ package model
 type OrderSide string
 
 const (
-	SideBuy  OrderSide = "buy"
-	SideSell OrderSide = "sell"
+	OrderSideBuy  OrderSide = "buy"
+	OrderSideSell OrderSide = "sell"
 )
