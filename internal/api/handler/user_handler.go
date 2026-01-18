@@ -2,6 +2,7 @@ package handler
 
 import (
 	"ebidsystem_csm/internal/api/dto/request"
+	"ebidsystem_csm/internal/api/dto/response"
 	"ebidsystem_csm/internal/service"
 	"strconv"
 
@@ -58,7 +59,11 @@ func (h *UserHandler) GetMe(c *gin.Context) {
 	}
 
 	// 3. 返回用户信息
-	c.JSON(200, user)
+	c.JSON(200, response.UserMeResponse{
+		ID:       user.ID,
+		Username: user.Username,
+		Role:     string(user.Role),
+	})
 }
 
 func (h *UserHandler) CreateUser(c *gin.Context) {
