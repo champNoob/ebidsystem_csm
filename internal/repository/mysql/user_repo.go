@@ -17,12 +17,12 @@ func NewUserRepo(db *sql.DB) repository.UserRepository {
 
 func (r *UserRepo) GetByID(ctx context.Context, id int64) (*model.User, error) {
 	row := r.db.QueryRowContext(ctx,
-		"SELECT id, username FROM users WHERE id = ?",
+		"SELECT id, username, role FROM users WHERE id = ?",
 		id,
 	)
 
 	var u model.User
-	if err := row.Scan(&u.ID, &u.Username); err != nil {
+	if err := row.Scan(&u.ID, &u.Username, &u.Role); err != nil {
 		return nil, err
 	}
 	return &u, nil
