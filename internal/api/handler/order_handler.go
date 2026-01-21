@@ -51,13 +51,26 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 }
 
 func (h *OrderHandler) ListOrders(c *gin.Context) {
-	userID := c.GetInt64("userID")
+	// 1. 从 JWT 中取 userID：
+	userIDAny, exists := c.Get("userID")
+	if !exists {
+		c.JSON(401, gin.H{"error": "unauthorized"})
+		return
+	}
+	userID := userIDAny.(int64)
 	role := c.GetString("role")
-
+	// 2. 解析 query 参数：
+	var req request.ListOrdersRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		c.JSON(400, gin.H{"error": "invalid query"})
+		return
+	}
+	// 3. 调用 service：
 	orders, err := h.service.ListOrders(
 		c.Request.Context(),
 		userID,
 		role,
+		req.Status,
 	)
 	if err != nil {
 		c.JSON(403, gin.H{"error": err.Error()})

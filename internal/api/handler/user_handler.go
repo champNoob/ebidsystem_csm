@@ -73,7 +73,6 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 		return
 	}
 
-	// ctx := c.Request.Context()
 	if err := h.service.CreateUser(
 		c.Request.Context(),
 		service.CreateUserInput{
@@ -82,7 +81,7 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 			Role:     req.Role,
 		},
 	); err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		c.JSON(400, gin.H{"message": err.Error()})
 		return
 	}
 

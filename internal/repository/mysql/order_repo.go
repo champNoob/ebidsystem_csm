@@ -7,6 +7,7 @@ import (
 	"ebidsystem_csm/internal/service"
 	"fmt"
 	"log"
+	"strings"
 )
 
 type OrderRepo struct {
@@ -44,13 +45,41 @@ VALUES (?, ?, ?, ?, ?, 0, ?)
 	return uint64(id), nil
 }
 
-func (r *OrderRepo) FindByUserID(ctx context.Context, userID int64) ([]*model.Order, error) {
-	rows, err := r.db.QueryContext(
-		ctx,
-		`SELECT id, user_id, symbol, side, price, quantity, filled_quantity, status, created_at
-		 FROM orders WHERE user_id = ?`,
-		userID,
-	)
+// 动态绑定 IN (...)：
+func buildStatusCondition(statuses []model.OrderStatus) (string, []interface{}) {
+	if len(statuses) == 0 {
+		return "", nil
+	}
+
+	placeholders := make([]string, len(statuses))
+	args := make([]interface{}, len(statuses))
+
+	for i, s := range statuses {
+		placeholders[i] = "?"
+		args[i] = s
+	}
+
+	return " AND status IN (" + strings.Join(placeholders, ",") + ")", args
+}
+
+func (r *OrderRepo) FindByUserID(
+	ctx context.Context,
+	userID int64,
+	statuses []model.OrderStatus,
+) ([]*model.Order, error) {
+	query := `
+	SELECT id, user_id, symbol, side, price, quantity, filled_quantity, status, created_at
+	FROM orders
+	WHERE user_id = ?
+	`
+
+	args := []interface{}{userID}
+
+	cond, condArgs := buildStatusCondition(statuses)
+	query += cond
+	args = append(args, condArgs...)
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -74,14 +103,25 @@ func (r *OrderRepo) FindByUserID(ctx context.Context, userID int64) ([]*model.Or
 		}
 		orders = append(orders, &o)
 	}
+
 	return orders, nil
 }
 
-func (r *OrderRepo) FindAll(ctx context.Context) ([]*model.Order, error) {
-	rows, err := r.db.QueryContext(
-		ctx,
-		`SELECT id, user_id, symbol, side, price, quantity, status, created_at FROM orders`,
-	)
+func (r *OrderRepo) FindAll(
+	ctx context.Context,
+	statuses []model.OrderStatus,
+) ([]*model.Order, error) {
+	query := `
+	SELECT id, user_id, symbol, side, price, quantity, filled_quantity, status, created_at
+	FROM orders
+	`
+	args := []interface{}{}
+
+	cond, condArgs := buildStatusCondition(statuses)
+	query += cond
+	args = append(args, condArgs...)
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -97,6 +137,7 @@ func (r *OrderRepo) FindAll(ctx context.Context) ([]*model.Order, error) {
 			&o.Side,
 			&o.Price,
 			&o.Quantity,
+			&o.FilledQuantity,
 			&o.Status,
 			&o.CreatedAt,
 		); err != nil {
@@ -104,10 +145,14 @@ func (r *OrderRepo) FindAll(ctx context.Context) ([]*model.Order, error) {
 		}
 		orders = append(orders, &o)
 	}
+
 	return orders, nil
 }
 
-func (r *OrderRepo) FindByID(ctx context.Context, id int64) (*model.Order, error) {
+func (r *OrderRepo) FindByID(
+	ctx context.Context,
+	id int64,
+) (*model.Order, error) {
 	row := r.db.QueryRowContext(
 		ctx,
 		`SELECT id, user_id, symbol, side, price, quantity, filled_quantity, status, created_at

@@ -81,17 +81,43 @@ func (s *OrderService) ListOrders(
 	ctx context.Context,
 	userID int64,
 	role string,
+	status string,
 ) ([]*model.Order, error) {
 
-	if role == "admin" || role == "trader" {
-		return s.repo.FindAll(ctx)
+	statuses, err := parseOrderQueryStatus(status)
+	if err != nil {
+		return nil, err
 	}
 
-	if role == "client" || role == "seller" {
-		return s.repo.FindByUserID(ctx, userID)
-	}
+	switch role {
+	case "admin", "trader":
+		return s.repo.FindAll(ctx, statuses)
 
-	return nil, errors.New("unauthorized role")
+	case "client", "seller":
+		return s.repo.FindByUserID(ctx, userID, statuses)
+
+	default:
+		return nil, errors.New("permission denied")
+	}
+}
+
+func parseOrderQueryStatus(s string) ([]model.OrderStatus, error) {
+	switch s {
+	case "", "all":
+		return nil, nil // nil = 不加过滤
+	case "current":
+		return []model.OrderStatus{
+			model.OrderStatusPending,
+			model.OrderStatusPartial,
+		}, nil
+	case "history":
+		return []model.OrderStatus{
+			model.OrderStatusFilled,
+			model.OrderStatusCanceled,
+		}, nil
+	default:
+		return nil, errors.New("invalid status query")
+	}
 }
 
 func (s *OrderService) CancelOrder(
@@ -125,6 +151,10 @@ func (s *OrderService) CancelOrder(
 	s.matcher.Remove(uint64(orderID), order.Symbol)
 	return nil
 }
+
+/*
+	撮合引擎部分
+*/
 
 // 启动撮合事件监听器：
 func (s *OrderService) StartMatchEventListener() {

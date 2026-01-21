@@ -14,8 +14,8 @@ type UserRepository interface {
 
 type OrderRepository interface {
 	Create(ctx context.Context, order *model.Order) (uint64, error)
-	FindByUserID(ctx context.Context, userID int64) ([]*model.Order, error)
-	FindAll(ctx context.Context) ([]*model.Order, error)
+	FindByUserID(ctx context.Context, userID int64, statuses []model.OrderStatus) ([]*model.Order, error)
+	FindAll(ctx context.Context, statuses []model.OrderStatus) ([]*model.Order, error)
 	FindByID(ctx context.Context, id int64) (*model.Order, error)
 	UpdateStatus(ctx context.Context, id int64, status string) error
 	FillOrder(ctx context.Context, orderID uint64, filledQty int64) error
