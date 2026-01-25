@@ -115,7 +115,7 @@ func parseOrderQueryStatus(s string) ([]model.OrderStatus, error) {
 			model.OrderStatusCanceled,
 		}, nil
 	default:
-		return nil, ErrOrderInvalidStatusQuery
+		return nil, ErrInvalidOrderStatusQuery
 	}
 }
 

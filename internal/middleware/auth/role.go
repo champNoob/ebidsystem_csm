@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"ebidsystem_csm/internal/service"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -18,7 +19,10 @@ func RequireRole(allowedRoles ...string) gin.HandlerFunc {
 		if !exists {
 			c.AbortWithStatusJSON(
 				http.StatusForbidden,
-				gin.H{"error": "role not found"},
+				gin.H{
+					"code":    service.ErrRoleNotFount.Code,
+					"message": service.ErrRoleNotFount.Message,
+				},
 			)
 			return
 		}
@@ -27,7 +31,10 @@ func RequireRole(allowedRoles ...string) gin.HandlerFunc {
 		if !ok {
 			c.AbortWithStatusJSON(
 				http.StatusForbidden,
-				gin.H{"error": "invalid role type"},
+				gin.H{
+					"code":    service.ErrInvalidUserRole.Code,
+					"message": service.ErrInvalidUserRole.Message,
+				},
 			)
 			return
 		}
@@ -35,7 +42,10 @@ func RequireRole(allowedRoles ...string) gin.HandlerFunc {
 		if _, ok := roleSet[role]; !ok {
 			c.AbortWithStatusJSON(
 				http.StatusForbidden,
-				gin.H{"error": "permission denied"},
+				gin.H{
+					"code":    service.ErrPermissionDenied.Code,
+					"message": service.ErrPermissionDenied.Message,
+				},
 			)
 			return
 		}

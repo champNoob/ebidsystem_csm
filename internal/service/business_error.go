@@ -23,24 +23,40 @@ var (
 	}
 	//登录与鉴权：
 	ErrMissingAuthHeader = &BusinessError{
-		Code:    "MISSING_AUTH_HEADER",
+		Code:    "AUTH_MISSING_HEADER",
 		Message: "缺少认证头",
 	}
+	ErrInvalidAuthHeader = &BusinessError{
+		Code:    "AUTH_INVALID_HEADER",
+		Message: "认证头不合法",
+	}
+	ErrInvalidToken = &BusinessError{
+		Code:    "AUTH_INVALID_TOKEN",
+		Message: "token不合法",
+	}
+	ErrInvalidTokenClaims = &BusinessError{
+		Code:    "AUTH_INVALID_TOKEN_CLAIM",
+		Message: "token claim不合法",
+	}
+	ErrRoleNotFount = &BusinessError{
+		Code:    "AUTH_ROLE_NOT_FOUND",
+		Message: "角色不存在",
+	}
 	ErrUserUnauthorized = &BusinessError{ //未通过身份认证
-		Code:    "USER_UNAUTHORIZED",
+		Code:    "AUTH_UNAUTHORIZED",
 		Message: "用户未授权",
 	}
 	ErrPermissionDenied = &BusinessError{ //越权
-		Code:    "PERMISSION_DENIED",
+		Code:    "AUTH_PERMISSION_DENIED",
 		Message: "权限不足",
 	}
 	// 用户侧：
 	ErrUserInvalidCredentials = &BusinessError{
-		Code:    "INVALID_CREDENTIALS", //无效凭据
+		Code:    "USER_INVALID_CREDENTIALS", //无效凭据
 		Message: "用户名或密码错误",
 	}
 	ErrInvalidUserID = &BusinessError{
-		Code:    "INVALID_USER_ID",
+		Code:    "USER_INVALID_ID",
 		Message: "无效的用户ID",
 	}
 	ErrUserNotFound = &BusinessError{
@@ -51,22 +67,22 @@ var (
 		Code:    "USER_ALREADY_EXISTS",
 		Message: "该用户名已经存在",
 	}
-	ErrInvalidUserRole = &BusinessError{
-		Code:    "INVALID_USER_ROLE",
+	ErrInvalidUserRole = &BusinessError{ //越权
+		Code:    "USER_INVALID_ROLE",
 		Message: "角色不合法",
 	}
 	ErrInvalidPassword = &BusinessError{
-		Code:    "INVALID_PASSWORD",
+		Code:    "USER_INVALID_PASSWORD",
 		Message: "密码错误",
 	}
 	ErrPasswordTooShort = &BusinessError{
-		Code:    "PASSWORD_TOO_SHORT",
+		Code:    "USER_PASSWORD_TOO_SHORT",
 		Message: "密码长度不足 8 位",
 	}
 
 	// 订单侧：
 	ErrInvalidOrderID = &BusinessError{
-		Code:    "INVALID_ORDER_ID",
+		Code:    "ORDER_INVALID_ID",
 		Message: "无效的订单ID",
 	}
 	ErrOrderNotFound = &BusinessError{
@@ -74,7 +90,7 @@ var (
 		Message: "找不到该订单",
 	}
 	ErrRoleSideMismatch = &BusinessError{
-		Code:    "ROLE_SIDE_MISMATCH",
+		Code:    "ORDER_ROLE_SIDE_MISMATCH",
 		Message: "角色与订单方向不匹配",
 	}
 	ErrOrderNotCancellable = &BusinessError{
@@ -98,10 +114,10 @@ var (
 		Message: "市价单不能有价格",
 	}
 	ErrInvalidOrderQuery = &BusinessError{
-		Code:    "INVALID_ORDER_QUERY",
+		Code:    "ORDER_INVALID_QUERY",
 		Message: "无效的订单查询",
 	}
-	ErrOrderInvalidStatusQuery = &BusinessError{ //?
+	ErrInvalidOrderStatusQuery = &BusinessError{ //
 		Code:    "ORDER_INVALID_STATUS_QUERY",
 		Message: "无效的订单状态查询",
 	}
