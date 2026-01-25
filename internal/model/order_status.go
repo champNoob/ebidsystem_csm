@@ -4,10 +4,10 @@ package model
 type OrderStatus string
 
 const (
-	OrderStatusPending  OrderStatus = "pending"  // 已下单，未成交
-	OrderStatusFilled   OrderStatus = "filled"   // 已完全成交
-	OrderStatusCanceled OrderStatus = "canceled" // 已撤单
-	OrderStatusPartial  OrderStatus = "partial"  // 部分成交
+	OrderStatusPending  OrderStatus = "pending"   // 已下单，未成交
+	OrderStatusFilled   OrderStatus = "filled"    // 已完全成交
+	OrderStatusCanceled OrderStatus = "cancelled" // 已撤单
+	OrderStatusPartial  OrderStatus = "partial"   // 部分成交
 )
 
 func (s OrderStatus) CanCancel() bool {

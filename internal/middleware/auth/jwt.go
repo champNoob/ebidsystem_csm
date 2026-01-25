@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"ebidsystem_csm/internal/pkg/security"
+	"ebidsystem_csm/internal/service"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -19,7 +20,10 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 		if authHeader == "" {
 			c.AbortWithStatusJSON(
 				http.StatusUnauthorized,
-				gin.H{"error": "missing Authorization header"},
+				gin.H{
+					"code":    service.ErrMissingAuthHeader.Code,
+					"message": service.ErrMissingAuthHeader.Message,
+				},
 			)
 			return
 		}
@@ -29,7 +33,10 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 		if len(parts) != 2 || parts[0] != "Bearer" {
 			c.AbortWithStatusJSON(
 				http.StatusUnauthorized,
-				gin.H{"error": "invalid Authorization header"},
+				gin.H{
+					"code":    service.ErrInvalidAuthHeader.Code,
+					"message": service.ErrInvalidAuthHeader.Message,
+				},
 			)
 			return
 		}
@@ -48,7 +55,10 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 		if err != nil || !token.Valid {
 			c.AbortWithStatusJSON(
 				http.StatusUnauthorized,
-				gin.H{"error": "invalid token"},
+				gin.H{
+					"code":    service.ErrInvalidToken.Code,
+					"message": service.ErrInvalidToken.Message,
+				},
 			)
 			return
 		}
@@ -57,7 +67,10 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 		if !ok {
 			c.AbortWithStatusJSON(
 				http.StatusUnauthorized,
-				gin.H{"error": "invalid token claims"},
+				gin.H{
+					"code":    service.ErrInvalidTokenClaims.Code,
+					"message": service.ErrInvalidTokenClaims.Message,
+				},
 			)
 			return
 		}
