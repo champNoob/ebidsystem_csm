@@ -54,11 +54,11 @@
 
 ### `v0.3.2` 统一错误封装
 
-- 自定义错误信息
+- 服务层自定义错误结构体（BusinessError）
 
-- 分层封装错误提示信息
+- 分层封装错误提示信息（内部错误不展示、服务层管理层分离）
 
-* 自定义错误码
+- 自定义错误码（DTO Response + 状态码映射表）
 
 详见 `docs\architecture\errorsPackaging.md`
 

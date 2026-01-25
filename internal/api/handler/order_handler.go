@@ -4,7 +4,6 @@ import (
 	"ebidsystem_csm/internal/api/dto/request"
 	"ebidsystem_csm/internal/model"
 	"ebidsystem_csm/internal/service"
-	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -21,9 +20,7 @@ func NewOrderHandler(s *service.OrderService) *OrderHandler {
 func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	var req request.CreateOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{ //400
-			"error": service.ErrInvalidInput.Error(), //服务层错误封装，统一映射
-		})
+		respondError(c, service.ErrInvalidInput)
 		return
 	}
 
@@ -31,7 +28,7 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	roleStr := c.GetString("role")
 	role, err := model.ParseUserRole(roleStr)
 	if err != nil {
-		c.JSON(403, gin.H{"error": "invalid user role"})
+		respondError(c, service.ErrInvalidUserRole)
 		return
 	}
 
@@ -45,7 +42,7 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		req.Price,
 		req.Quantity,
 	); err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		respondError(c, err)
 		return
 	}
 
@@ -56,7 +53,7 @@ func (h *OrderHandler) ListOrders(c *gin.Context) {
 	// 1. 从 JWT 中取 userID：
 	userIDAny, exists := c.Get("userID")
 	if !exists {
-		c.JSON(401, gin.H{"error": "unauthorized"})
+		respondError(c, service.ErrUserUnauthorized)
 		return
 	}
 	userID := userIDAny.(int64)
@@ -64,7 +61,7 @@ func (h *OrderHandler) ListOrders(c *gin.Context) {
 	// 2. 解析 query 参数：
 	var req request.ListOrdersRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		c.JSON(400, gin.H{"error": "invalid query"})
+		respondError(c, service.ErrInvalidOrderQuery)
 		return
 	}
 	// 3. 调用 service：
@@ -75,7 +72,7 @@ func (h *OrderHandler) ListOrders(c *gin.Context) {
 		req.Status,
 	)
 	if err != nil {
-		c.JSON(403, gin.H{"error": err.Error()})
+		respondError(c, err)
 		return
 	}
 
@@ -85,7 +82,7 @@ func (h *OrderHandler) ListOrders(c *gin.Context) {
 func (h *OrderHandler) CancelOrder(c *gin.Context) {
 	orderID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(400, gin.H{"error": "invalid order id"})
+		respondError(c, service.ErrInvalidOrderID)
 		return
 	}
 
@@ -100,14 +97,7 @@ func (h *OrderHandler) CancelOrder(c *gin.Context) {
 	)
 
 	if err != nil {
-		switch err {
-		case service.ErrOrderNotFound:
-			c.JSON(404, gin.H{"error": err.Error()})
-		case service.ErrOrderNotCancellable, service.ErrPermissionDenied:
-			c.JSON(403, gin.H{"error": err.Error()})
-		default:
-			c.JSON(500, gin.H{"error": "internal error"})
-		}
+		respondError(c, err)
 		return
 	}
 

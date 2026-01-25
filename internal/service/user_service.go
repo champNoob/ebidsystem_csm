@@ -39,7 +39,7 @@ func (s *UserService) CreateUser(
 	switch input.Role {
 	case "client", "seller", "trader", "admin":
 	default:
-		return ErrRoleInvalid
+		return ErrInvalidUserRole
 	}
 
 	// 3. 密码处理（业务规则）：

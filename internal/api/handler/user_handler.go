@@ -4,6 +4,7 @@ import (
 	"ebidsystem_csm/internal/api/dto/request"
 	"ebidsystem_csm/internal/api/dto/response"
 	"ebidsystem_csm/internal/service"
+	"log"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -20,13 +21,13 @@ func NewUserHandler(service *service.UserService) *UserHandler {
 func (h *UserHandler) GetUser(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(400, gin.H{"error": "invalid id"})
+		respondError(c, service.ErrInvalidUserID)
 		return
 	}
 
 	user, err := h.service.GetUser(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		respondError(c, err)
 		return
 	}
 
@@ -38,13 +39,14 @@ func (h *UserHandler) GetMe(c *gin.Context) {
 	// 1. 从 JWT Middleware 写入的 context 中取 userID
 	userIDAny, exists := c.Get("userID")
 	if !exists {
-		c.JSON(401, gin.H{"error": "unauthorized"})
+		respondError(c, service.ErrUserUnauthorized)
 		return
 	}
 
 	userID, ok := userIDAny.(int64)
 	if !ok {
-		c.JSON(500, gin.H{"error": "invalid user id type"})
+		log.Printf("Invalid userID type: %T", userIDAny)
+		respondError(c, service.ErrInternal)
 		return
 	}
 
@@ -54,7 +56,7 @@ func (h *UserHandler) GetMe(c *gin.Context) {
 		userID,
 	)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		respondError(c, err)
 		return
 	}
 
@@ -69,7 +71,7 @@ func (h *UserHandler) GetMe(c *gin.Context) {
 func (h *UserHandler) CreateUser(c *gin.Context) {
 	var req request.CreateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		respondError(c, service.ErrInvalidInput)
 		return
 	}
 
@@ -81,7 +83,7 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 			Role:     req.Role,
 		},
 	); err != nil {
-		c.JSON(400, gin.H{"message": err.Error()})
+		respondError(c, err)
 		return
 	}
 
@@ -91,7 +93,7 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 func (h *UserHandler) Login(c *gin.Context) {
 	var req request.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": "invalid request"})
+		respondError(c, service.ErrInvalidInput)
 		return
 	}
 
@@ -102,14 +104,8 @@ func (h *UserHandler) Login(c *gin.Context) {
 			Password: req.Password,
 		},
 	)
-
 	if err != nil {
-		switch err {
-		case service.ErrUserNotFound, service.ErrInvalidPassword:
-			c.JSON(401, gin.H{"error": "invalid credentials"})
-		default:
-			c.JSON(500, gin.H{"error": "internal error"})
-		}
+		respondError(c, err)
 		return
 	}
 

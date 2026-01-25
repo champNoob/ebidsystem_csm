@@ -17,7 +17,7 @@ func validateRoleSide(role model.UserRole, side model.OrderSide) error {
 	case model.UserRoleTrader:
 		return nil
 	default:
-		return ErrRoleInvalid
+		return ErrInvalidUserRole
 	}
 	return nil
 }
