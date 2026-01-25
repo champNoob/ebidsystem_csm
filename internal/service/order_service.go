@@ -5,7 +5,6 @@ import (
 	"ebidsystem_csm/internal/matching"
 	"ebidsystem_csm/internal/model"
 	"ebidsystem_csm/internal/repository"
-	"errors"
 	"log"
 )
 
@@ -37,14 +36,14 @@ func (s *OrderService) CreateOrder(
 	switch orderType {
 	case model.OrderTypeLimit:
 		if price == nil {
-			return errors.New("limit order requires price")
+			return ErrOrderLimitWithoutPrice
 		}
 	case model.OrderTypeMarket:
 		if price != nil {
-			return errors.New("market order must not have price")
+			return ErrOrderMarketWithPrice
 		}
 	default:
-		return errors.New("invalid order type")
+		return ErrOrderInvalidType
 	}
 
 	order := &model.Order{
@@ -97,7 +96,7 @@ func (s *OrderService) ListOrders(
 		return s.repo.FindByUserID(ctx, userID, statuses)
 
 	default:
-		return nil, errors.New("permission denied")
+		return nil, ErrPermissionDenied
 	}
 }
 
@@ -116,7 +115,7 @@ func parseOrderQueryStatus(s string) ([]model.OrderStatus, error) {
 			model.OrderStatusCanceled,
 		}, nil
 	default:
-		return nil, errors.New("invalid status query")
+		return nil, ErrOrderInvalidStatusQuery
 	}
 }
 

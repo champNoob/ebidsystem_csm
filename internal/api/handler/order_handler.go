@@ -21,7 +21,9 @@ func NewOrderHandler(s *service.OrderService) *OrderHandler {
 func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	var req request.CreateOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{ //400
+			"error": service.ErrInvalidInput.Error(), //服务层错误封装，统一映射
+		})
 		return
 	}
 
