@@ -114,6 +114,7 @@ func (r *OrderRepo) FindAll(
 	query := `
 	SELECT id, user_id, symbol, side, price, quantity, filled_quantity, status, created_at
 	FROM orders
+	WHERE 1=1
 	`
 	args := []interface{}{}
 
