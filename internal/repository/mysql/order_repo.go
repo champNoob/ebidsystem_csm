@@ -123,6 +123,7 @@ func (r *OrderRepo) FindAll(
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
+		log.Printf("%v", err)
 		return nil, err
 	}
 	defer rows.Close()
