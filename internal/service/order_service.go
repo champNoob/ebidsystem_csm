@@ -5,7 +5,6 @@ import (
 	"ebidsystem_csm/internal/matching"
 	"ebidsystem_csm/internal/model"
 	"ebidsystem_csm/internal/repository"
-	"errors"
 	"log"
 )
 
@@ -37,14 +36,14 @@ func (s *OrderService) CreateOrder(
 	switch orderType {
 	case model.OrderTypeLimit:
 		if price == nil {
-			return errors.New("limit order requires price")
+			return ErrOrderLimitWithoutPrice
 		}
 	case model.OrderTypeMarket:
 		if price != nil {
-			return errors.New("market order must not have price")
+			return ErrOrderMarketWithPrice
 		}
 	default:
-		return errors.New("invalid order type")
+		return ErrOrderInvalidType
 	}
 
 	order := &model.Order{
@@ -81,17 +80,43 @@ func (s *OrderService) ListOrders(
 	ctx context.Context,
 	userID int64,
 	role string,
+	status string,
 ) ([]*model.Order, error) {
 
-	if role == "admin" || role == "trader" {
-		return s.repo.FindAll(ctx)
+	statuses, err := parseOrderQueryStatus(status)
+	if err != nil {
+		return nil, err
 	}
 
-	if role == "client" || role == "seller" {
-		return s.repo.FindByUserID(ctx, userID)
-	}
+	switch role {
+	case "admin", "trader":
+		return s.repo.FindAll(ctx, statuses)
 
-	return nil, errors.New("unauthorized role")
+	case "client", "seller":
+		return s.repo.FindByUserID(ctx, userID, statuses)
+
+	default:
+		return nil, ErrPermissionDenied
+	}
+}
+
+func parseOrderQueryStatus(s string) ([]model.OrderStatus, error) {
+	switch s {
+	case "", "all":
+		return nil, nil // nil = 不加过滤
+	case "current":
+		return []model.OrderStatus{
+			model.OrderStatusPending,
+			model.OrderStatusPartial,
+		}, nil
+	case "history":
+		return []model.OrderStatus{
+			model.OrderStatusFilled,
+			model.OrderStatusCanceled,
+		}, nil
+	default:
+		return nil, ErrInvalidOrderStatusQuery
+	}
 }
 
 func (s *OrderService) CancelOrder(
@@ -125,6 +150,10 @@ func (s *OrderService) CancelOrder(
 	s.matcher.Remove(uint64(orderID), order.Symbol)
 	return nil
 }
+
+/*
+	撮合引擎部分
+*/
 
 // 启动撮合事件监听器：
 func (s *OrderService) StartMatchEventListener() {
