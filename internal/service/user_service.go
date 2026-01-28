@@ -66,7 +66,7 @@ func (s *UserService) CreateUser(
 	// 5. 创建审计日志
 	// 6. 触发领域事件
 
-	return s.repo.Create(ctx, user)
+	return nil
 }
 
 func isMySQLDuplicateEntry(err error) bool {

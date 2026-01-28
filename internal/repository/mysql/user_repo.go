@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"ebidsystem_csm/internal/model"
 	"ebidsystem_csm/internal/repository"
+	"log"
 )
 
 type UserRepo struct {
@@ -79,5 +80,8 @@ func (r *UserRepo) Create(ctx context.Context, user *model.User) error {
 		user.PasswordHash,
 		user.Role,
 	)
+	if err != nil {
+		log.Printf("? %v", err)
+	}
 	return err
 }
