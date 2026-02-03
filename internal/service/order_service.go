@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"ebidsystem_csm/internal/matching"
 	"ebidsystem_csm/internal/model"
 	"ebidsystem_csm/internal/repository"
@@ -173,36 +174,35 @@ func (s *OrderService) StartMatchEventListener() {
 	}()
 }
 
-// 处理撮合事件：
+// 处理撮合事件（幂等）：
 func (s *OrderService) handleMatchEvent(
 	ctx context.Context,
 	ev matching.MatchEvent,
 ) error {
 
-	// 1. 更新买单
-	if err := s.repo.FillOrder(
-		ctx,
-		ev.BuyOrderID,
-		ev.Quantity,
-	); err != nil {
-		return err
-	}
+	return s.repo.WithTx(ctx, func(tx *sql.Tx) error {
+		// 1. 买单
+		if err := s.repo.FillOrderTx(
+			ctx, tx, ev.BuyOrderID, ev.Quantity,
+		); err != nil {
+			return err
+		}
 
-	// 2. 更新卖单
-	if err := s.repo.FillOrder(
-		ctx,
-		ev.SellOrderID,
-		ev.Quantity,
-	); err != nil {
-		return err
-	}
+		// 2. 卖单
+		if err := s.repo.FillOrderTx(
+			ctx, tx, ev.SellOrderID, ev.Quantity,
+		); err != nil {
+			return err
+		}
 
-	// 3. 写成交记录
-	trade := &model.Trade{
-		BuyOrderID:  ev.BuyOrderID,
-		SellOrderID: ev.SellOrderID,
-		Price:       ev.Price,
-		Quantity:    ev.Quantity,
-	}
-	return s.repo.CreateTrade(ctx, trade)
+		// 3. 成交（幂等）
+		trade := &model.Trade{
+			EventID:     ev.EventID,
+			BuyOrderID:  ev.BuyOrderID,
+			SellOrderID: ev.SellOrderID,
+			Price:       ev.Price,
+			Quantity:    ev.Quantity,
+		}
+		return s.repo.CreateTradeTx(ctx, tx, trade)
+	})
 }

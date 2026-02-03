@@ -3,6 +3,8 @@ package matching
 import (
 	"context"
 	"log"
+
+	"github.com/google/uuid"
 )
 
 type SymbolMatcher struct {
@@ -77,8 +79,9 @@ func (sm *SymbolMatcher) matchAndEmit() {
 			ev.Quantity,
 			ev.Price,
 		)
-
-		// 事件输出（由 Engine fan-in）
+		// 生成事件 ID：
+		ev.EventID = uuid.NewString() // 或 snowflake
+		// 事件输出（由 Engine fan-in）：
 		sm.eventCh <- ev
 	}
 }
