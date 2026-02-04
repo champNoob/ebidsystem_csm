@@ -81,6 +81,7 @@ func (sm *SymbolMatcher) matchAndEmit() {
 		)
 		// 生成事件 ID：
 		ev.EventID = uuid.NewString() // 或 snowflake
+		// ev.Symbol = sm.symbol
 		// 事件输出（由 Engine fan-in）：
 		sm.eventCh <- ev
 	}

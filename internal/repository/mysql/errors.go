@@ -3,12 +3,8 @@ package mysql
 import "github.com/go-sql-driver/mysql"
 
 func isMySQLDuplicateEntry(err error) bool {
-	if err == nil {
-		return false
+	if e, ok := err.(*mysql.MySQLError); ok {
+		return e.Number == 1062
 	}
-	mysqlErr, ok := err.(*mysql.MySQLError)
-	if !ok {
-		return false
-	}
-	return mysqlErr.Number == 1062
+	return false
 }

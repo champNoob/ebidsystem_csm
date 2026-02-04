@@ -2,12 +2,12 @@ package mysql
 
 import (
 	"context"
-	"database/sql"
+	"ebidsystem_csm/internal/repository"
 )
 
 func (r *OrderRepo) WithTx(
 	ctx context.Context,
-	fn func(tx *sql.Tx) error,
+	fn repository.TxFunc,
 ) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {

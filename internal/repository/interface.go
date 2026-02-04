@@ -26,6 +26,7 @@ type OrderRepository interface {
 	WithTx(ctx context.Context, fn TxFunc) error
 	FillOrderTx(ctx context.Context, tx *sql.Tx, orderID uint64, qty int64) error
 	CreateTradeTx(ctx context.Context, tx *sql.Tx, trade *model.Trade) error
+	InsertMatchEventTx(ctx context.Context, tx *sql.Tx, eventID string) (bool, error)
 }
 
 type TxFunc func(tx *sql.Tx) error

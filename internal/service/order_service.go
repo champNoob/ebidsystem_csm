@@ -181,6 +181,14 @@ func (s *OrderService) handleMatchEvent(
 ) error {
 
 	return s.repo.WithTx(ctx, func(tx *sql.Tx) error {
+		// 0. 幂等门闸
+		ok, err := s.repo.InsertMatchEventTx(ctx, tx, ev.EventID)
+		if err != nil {
+			return err
+		}
+		if !ok { //幂等命中：整个事件已经处理过
+			return nil
+		}
 		// 1. 买单
 		if err := s.repo.FillOrderTx(
 			ctx, tx, ev.BuyOrderID, ev.Quantity,
