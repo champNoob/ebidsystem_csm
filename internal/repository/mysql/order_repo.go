@@ -277,6 +277,44 @@ func (r *OrderRepo) FillOrder(
 	return nil
 }
 
+func (r *OrderRepo) FillOrderTx(
+	ctx context.Context,
+	tx *sql.Tx,
+	orderID uint64,
+	filledQty int64,
+) error {
+	res, err := tx.ExecContext(
+		ctx,
+		`
+		UPDATE orders
+		SET
+			filled_quantity = filled_quantity + ?,
+			status = CASE
+				WHEN filled_quantity + ? >= quantity THEN 'filled'
+				ELSE 'partial'
+			END,
+			updated_at = NOW()
+		WHERE id = ?
+		  AND status IN ('pending', 'partial')
+		  AND filled_quantity + ? <= quantity
+		`,
+		filledQty,
+		filledQty,
+		orderID,
+		filledQty,
+	)
+	if err != nil {
+		return err
+	}
+
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return service.ErrOrderUpdateFailed
+	}
+
+	return nil
+}
+
 func (r *OrderRepo) CreateTrade(ctx context.Context, trade *model.Trade) error {
 	_, err := r.db.ExecContext(
 		ctx,
@@ -287,6 +325,33 @@ func (r *OrderRepo) CreateTrade(ctx context.Context, trade *model.Trade) error {
 		trade.Quantity,
 	)
 	return err
+}
+
+func (r *OrderRepo) CreateTradeTx(
+	ctx context.Context,
+	tx *sql.Tx,
+	trade *model.Trade,
+) error {
+	_, err := tx.ExecContext(
+		ctx,
+		`
+		INSERT INTO trades (event_id, buy_order_id, sell_order_id, price, quantity)
+		VALUES (?, ?, ?, ?, ?)
+		`,
+		trade.EventID,
+		trade.BuyOrderID,
+		trade.SellOrderID,
+		trade.Price,
+		trade.Quantity,
+	)
+	if err != nil {
+		if isMySQLDuplicateEntry(err) {
+			// 幂等命中：该撮合事件已处理
+			return nil
+		}
+		return err
+	}
+	return nil
 }
 
 func (r *OrderRepo) CancelOrder(
