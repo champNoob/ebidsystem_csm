@@ -2,9 +2,8 @@ package matching
 
 import (
 	"context"
+	"fmt"
 	"log"
-
-	"github.com/google/uuid"
 )
 
 type SymbolMatcher struct {
@@ -17,6 +16,9 @@ type SymbolMatcher struct {
 
 	ctx    context.Context
 	cancel context.CancelFunc
+
+	seq      int64
+	eventSeq uint64 //递增序列号
 }
 
 func NewSymbolMatcher(
@@ -60,6 +62,8 @@ func (sm *SymbolMatcher) Stop() {
 }
 
 func (sm *SymbolMatcher) Submit(order *Order) {
+	sm.seq++
+	order.Seq = sm.seq
 	sm.orderCh <- order
 }
 
@@ -71,6 +75,8 @@ func (sm *SymbolMatcher) matchAndEmit() {
 	events := sm.book.Match()
 
 	for _, ev := range events {
+		ev.EventID = sm.nextEventID() //撮合引擎直接生成事件ID
+
 		log.Printf(
 			"[MATCH] symbol=%s buy=%d sell=%d qty=%d price=%.2f",
 			sm.symbol,
@@ -79,10 +85,12 @@ func (sm *SymbolMatcher) matchAndEmit() {
 			ev.Quantity,
 			ev.Price,
 		)
-		// 生成事件 ID：
-		ev.EventID = uuid.NewString() // 或 snowflake
-		// ev.Symbol = sm.symbol
 		// 事件输出（由 Engine fan-in）：
 		sm.eventCh <- ev
 	}
+}
+
+func (sm *SymbolMatcher) nextEventID() string {
+	sm.eventSeq++
+	return fmt.Sprintf("%s-%d", sm.symbol, sm.eventSeq)
 }
