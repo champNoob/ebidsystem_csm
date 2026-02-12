@@ -27,5 +27,6 @@ type Order struct {
 	Price     float64
 	Quantity  int64 //原始下单量（只读）
 	Remaining int64 //剩余可成交量（会变化）
+	Seq       int64 //时间序列，用于 FIFO
 	CreatedAt time.Time
 }

@@ -15,9 +15,9 @@ func NewOrderBook() *OrderBook {
 
 func (ob *OrderBook) AddOrder(o *Order) {
 	if o.Side == OrderSideBuy {
-		ob.buyOrders = append(ob.buyOrders, o)
+		ob.buyOrders = insertBuy(ob.buyOrders, o)
 	} else {
-		ob.sellOrders = append(ob.sellOrders, o)
+		ob.sellOrders = insertSell(ob.sellOrders, o)
 	}
 	o.Remaining = o.Quantity
 }
@@ -35,4 +35,40 @@ func filterOrders(orders []*Order, id uint64) []*Order {
 		}
 	}
 	return res
+}
+
+func insertBuy(orders []*Order, o *Order) []*Order {
+	idx := 0
+	for idx < len(orders) {
+		if o.Price > orders[idx].Price {
+			break
+		}
+		if o.Price == orders[idx].Price && o.Seq < orders[idx].Seq {
+			break
+		}
+		idx++
+	}
+
+	orders = append(orders, nil)
+	copy(orders[idx+1:], orders[idx:])
+	orders[idx] = o
+	return orders
+}
+
+func insertSell(orders []*Order, o *Order) []*Order {
+	idx := 0
+	for idx < len(orders) {
+		if o.Price < orders[idx].Price {
+			break
+		}
+		if o.Price == orders[idx].Price && o.Seq < orders[idx].Seq {
+			break
+		}
+		idx++
+	}
+
+	orders = append(orders, nil)
+	copy(orders[idx+1:], orders[idx:])
+	orders[idx] = o
+	return orders
 }
