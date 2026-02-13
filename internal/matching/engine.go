@@ -3,6 +3,7 @@ package matching
 import (
 	"context"
 	"log"
+	"sync"
 )
 
 type Engine struct {
@@ -12,6 +13,8 @@ type Engine struct {
 
 	ctx    context.Context
 	cancel context.CancelFunc
+
+	wg sync.WaitGroup
 }
 
 func NewEngine() *Engine {
@@ -27,15 +30,21 @@ func NewEngine() *Engine {
 }
 
 func (e *Engine) Start() {
+	e.wg.Add(1)
+
 	go func() {
+		defer e.wg.Done()
+
 		for {
 			select {
 			case <-e.ctx.Done():
+				log.Printf("[MATCHING_ENGINE_STOP]")
 				return
+
 			case order := <-e.orderCh:
 				matcher, ok := e.matchers[order.Symbol]
 				if !ok {
-					matcher = NewSymbolMatcher(order.Symbol, e.eventCh)
+					matcher = NewSymbolMatcher(e.ctx, order.Symbol, e.eventCh)
 					matcher.Start()
 					e.matchers[order.Symbol] = matcher
 				}
@@ -58,6 +67,9 @@ func (e *Engine) Stop() {
 	for _, sm := range e.matchers {
 		sm.Stop()
 	}
+
+	e.wg.Wait()
+	close(e.eventCh)
 }
 
 func (e *Engine) Submit(order *Order) error {
