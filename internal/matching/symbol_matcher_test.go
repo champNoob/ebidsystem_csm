@@ -1,13 +1,15 @@
 package matching
 
 import (
+	"context"
 	"testing"
 	"time"
 )
 
 func TestSymbolMatcher_MatchFlow(t *testing.T) {
 	eventCh := make(chan MatchEvent, 10)
-	sm := NewSymbolMatcher("AAPL", eventCh)
+	ctx, _ := context.WithCancel(context.Background())
+	sm := NewSymbolMatcher(ctx, "AAPL", eventCh)
 	sm.Start()
 	defer sm.Stop()
 
@@ -41,7 +43,8 @@ func TestSymbolMatcher_MatchFlow(t *testing.T) {
 
 func TestSymbolMatcher_Remove(t *testing.T) {
 	eventCh := make(chan MatchEvent, 1)
-	sm := NewSymbolMatcher("AAPL", eventCh)
+	ctx, _ := context.WithCancel(context.Background())
+	sm := NewSymbolMatcher(ctx, "AAPL", eventCh)
 	sm.Start()
 	defer sm.Stop()
 

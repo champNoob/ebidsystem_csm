@@ -1,7 +1,13 @@
 package main
 
 import (
+	"context"
 	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"ebidsystem_csm/internal/api/handler"
 	"ebidsystem_csm/internal/api/route"
@@ -44,12 +50,39 @@ func main() {
 	userHandler := handler.NewUserHandler(userService)
 	orderHandler := handler.NewOrderHandler(orderService)
 
-	// 7. Router（Http服务，只接收 handler）
+	// 7. 设置路由
 	r := route.SetupRouter(
 		userHandler,
 		orderHandler,
 	)
-	if err := r.Run(cfg.Server.Addr); err != nil {
-		log.Fatalf("server start failed: %v", err)
+	// 8. 创建 HTTP 服务器
+	srv := &http.Server{
+		Addr:    cfg.Server.Addr,
+		Handler: r,
 	}
+	go func() { //启动服务器（非阻塞）
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("listen: %s\n", err)
+		}
+	}()
+
+	// 9. 监听服务器信号
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	log.Println("Shutting down server...")
+
+	// 10. 关闭服务器
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Printf("Server Shutdown Failed:%+v", err)
+	}
+
+	// 11. 关闭撮合引擎
+	engine.Stop()
+
+	log.Println("Server exited properly")
+
 }

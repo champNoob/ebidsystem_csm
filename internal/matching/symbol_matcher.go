@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sync"
+	"time"
 )
 
 type SymbolMatcher struct {
@@ -14,18 +16,20 @@ type SymbolMatcher struct {
 
 	eventCh chan<- MatchEvent
 
+	seq      int64  //订单时间优先级（用于FIFO排序）
+	eventSeq uint64 //撮合事件编号（递增）
+
 	ctx    context.Context
 	cancel context.CancelFunc
-
-	seq      int64
-	eventSeq uint64 //递增序列号
+	wg     sync.WaitGroup
 }
 
 func NewSymbolMatcher(
+	parentCtx context.Context,
 	symbol string,
 	eventCh chan<- MatchEvent,
 ) *SymbolMatcher {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(parentCtx)
 
 	return &SymbolMatcher{
 		symbol:   symbol,
@@ -39,19 +43,37 @@ func NewSymbolMatcher(
 }
 
 func (sm *SymbolMatcher) Start() {
+	sm.wg.Add(1)
+
 	go func() {
+		defer sm.wg.Done()
+
 		for {
 			select {
 			case <-sm.ctx.Done():
 				log.Printf("[SYMBOL_MATCHER_STOP] symbol=%s", sm.symbol)
 				return
 
-			case order := <-sm.orderCh:
-				sm.book.AddOrder(order)
-				sm.matchAndEmit()
-
-			case orderID := <-sm.removeCh:
+			case orderID, ok := <-sm.removeCh: //优先响应撤单
+				if !ok {
+					return
+				}
 				sm.book.Remove(orderID)
+
+			default: //公平竞争撤单和下单
+				select {
+				case order, ok := <-sm.orderCh:
+					if !ok {
+						return
+					}
+					sm.book.AddOrder(order)
+					sm.matchAndEmit()
+				case orderID, ok := <-sm.removeCh:
+					if !ok {
+						return
+					}
+					sm.book.Remove(orderID)
+				}
 			}
 		}
 	}()
@@ -59,6 +81,9 @@ func (sm *SymbolMatcher) Start() {
 
 func (sm *SymbolMatcher) Stop() {
 	sm.cancel()
+	close(sm.orderCh)
+	close(sm.removeCh)
+	sm.wg.Wait()
 }
 
 func (sm *SymbolMatcher) Submit(order *Order) {
@@ -92,5 +117,9 @@ func (sm *SymbolMatcher) matchAndEmit() {
 
 func (sm *SymbolMatcher) nextEventID() string {
 	sm.eventSeq++
-	return fmt.Sprintf("%s-%d", sm.symbol, sm.eventSeq)
+	return fmt.Sprintf("%s-%d-%d",
+		sm.symbol,
+		time.Now().UnixNano(),
+		sm.eventSeq,
+	)
 }
