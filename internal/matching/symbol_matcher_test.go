@@ -41,7 +41,7 @@ func TestSymbolMatcher_MatchFlow(t *testing.T) {
 	}
 }
 
-func TestSymbolMatcher_Remove(t *testing.T) {
+func TestSymbolMatcher_Remove(t *testing.T) { //#
 	eventCh := make(chan MatchEvent, 1)
 	ctx, _ := context.WithCancel(context.Background())
 	sm := NewSymbolMatcher(ctx, "AAPL", eventCh)

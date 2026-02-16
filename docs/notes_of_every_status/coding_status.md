@@ -263,4 +263,30 @@ func (s OrderStatus) CanCancel() bool {
 
 ## step 12: 多协程撮合引擎
 
-## step 13: 市价单
+### 撮合事件事务化
+
+- `symbol` 级撮合引擎，确保隔离性
+
+- 在服务层调用仓储层定义好的 `Tx` 函数，确保原子性
+
+- 在仓储层 `FillOrderTx`、`CreateTradeTx` 等函数确保原子性和一致性
+
+### 幂等性检查机制
+
+- 使用 `InsertMatchEventTx` 实现事件去重
+
+- 设置 `trade` 表的 `UNIQUE(event_id)`
+
+### 引擎优化
+
+- 价格优先策略
+
+- 引擎上下文
+
+### 引擎重启恢复机制
+
+- 
+
+## step 13: 业务完善
+
+### 市价单

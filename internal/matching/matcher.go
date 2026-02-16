@@ -15,14 +15,14 @@ func (ob *OrderBook) Match() []MatchEvent {
 		// 本次成交量 = min(剩余量)：
 		qty := min(buy.Remaining, sell.Remaining)
 		log.Printf(
-			"[MATCH_DEBUG] buyID=%d buyRem=%d sellID=%d sellRem=%d matchQty=%d",
+			"[MATCHER_DEBUG] buyID=%d buyRem=%d sellID=%d sellRem=%d matchQty=%d",
 			buy.ID,
 			buy.Remaining,
 			sell.ID,
 			sell.Remaining,
 			qty,
 		)
-
+		// 生成撮合事件：
 		events = append(events, MatchEvent{
 			BuyOrderID:  buy.ID,
 			SellOrderID: sell.ID,

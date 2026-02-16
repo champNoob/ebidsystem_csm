@@ -5,7 +5,7 @@ import (
 	"database/sql"
 )
 
-func (r *OrderRepo) InsertMatchEventTx(
+func (r *OrderRepo) InsertMatchEventTx( //事件去重
 	ctx context.Context,
 	tx *sql.Tx,
 	eventID string,

@@ -60,7 +60,7 @@ func (sm *SymbolMatcher) Start() {
 				}
 				sm.book.Remove(orderID)
 
-			default: //公平竞争撤单和下单
+			default: //#公平竞争撤单和下单
 				select {
 				case order, ok := <-sm.orderCh:
 					if !ok {
