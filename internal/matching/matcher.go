@@ -1,8 +1,13 @@
 package matching
 
+import (
+	"ebidsystem_csm/internal/pkg/logger"
+	"fmt"
+)
+
 // import "log"
 
-func (ob *OrderBook) Match() []MatchEvent {
+func (ob *OrderBook) Match(logger *logger.Logger) []MatchEvent {
 	events := make([]MatchEvent, 0)
 
 	for len(ob.buyOrders) > 0 && len(ob.sellOrders) > 0 {
@@ -14,14 +19,16 @@ func (ob *OrderBook) Match() []MatchEvent {
 		}
 		// 本次成交量 = min(剩余量)：
 		qty := min(buy.Remaining, sell.Remaining)
-		// log.Printf(
-		// 	"[MATCHER_DEBUG] buyID=%d buyRem=%d sellID=%d sellRem=%d matchQty=%d",
-		// 	buy.ID,
-		// 	buy.Remaining,
-		// 	sell.ID,
-		// 	sell.Remaining,
-		// 	qty,
-		// )
+		// 输出日志：
+		message := fmt.Sprintf(
+			"[MATCHER_DEBUG] buyID=%d buyRem=%d sellID=%d sellRem=%d matchQty=%d",
+			buy.ID,
+			buy.Remaining,
+			sell.ID,
+			sell.Remaining,
+			qty,
+		)
+		logger.Log(message)
 		// 生成撮合事件：
 		events = append(events, MatchEvent{
 			BuyOrderID:  buy.ID,

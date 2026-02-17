@@ -13,7 +13,9 @@ type Engine struct {
 	eventCh  chan MatchEvent
 	matchers map[string]*SymbolMatcher
 
-	submitLogger *logger.Logger
+	submitLogger  *logger.Logger
+	eventLogger   *logger.Logger
+	obMatchLogger *logger.Logger
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -23,10 +25,30 @@ type Engine struct {
 
 func NewEngine() *Engine {
 	ctx, cancel := context.WithCancel(context.Background())
-
+	// 创建订单提交日志实例：
 	submitLogger, err := logger.NewLogger(
-		200000,
+		50000,
 		"engine/engine_submit.log",
+		false,
+	)
+	if err != nil {
+		log.Printf("创建引擎日志失败: %v", err)
+		panic(err)
+	}
+	// 创建撮合事件日志实例：
+	eventLogger, err := logger.NewLogger(
+		50000,
+		"engine/symbol_matcher_match.log",
+		false,
+	)
+	if err != nil {
+		log.Printf("创建引擎日志失败: %v", err)
+		panic(err)
+	}
+	// 创建订单簿撮合日志实例：
+	obMatchLogger, err := logger.NewLogger(
+		50000,
+		"engine/orderbook_match.log",
 		false,
 	)
 	if err != nil {
@@ -35,12 +57,14 @@ func NewEngine() *Engine {
 	}
 
 	return &Engine{
-		orderCh:      make(chan *Order, 1024),
-		eventCh:      make(chan MatchEvent, 1024),
-		matchers:     make(map[string]*SymbolMatcher),
-		ctx:          ctx,
-		cancel:       cancel,
-		submitLogger: submitLogger,
+		orderCh:       make(chan *Order, 1024),
+		eventCh:       make(chan MatchEvent, 1024),
+		matchers:      make(map[string]*SymbolMatcher),
+		ctx:           ctx,
+		cancel:        cancel,
+		submitLogger:  submitLogger,
+		eventLogger:   eventLogger,
+		obMatchLogger: obMatchLogger,
 	}
 }
 
@@ -62,7 +86,13 @@ func (e *Engine) Start() {
 				}
 				matcher, ok := e.matchers[order.Symbol]
 				if !ok {
-					matcher = NewSymbolMatcher(e.ctx, order.Symbol, e.eventCh)
+					matcher = NewSymbolMatcher(
+						e.ctx,
+						order.Symbol,
+						e.eventCh,
+						e.eventLogger,
+						e.obMatchLogger,
+					)
 					matcher.Start()
 					e.matchers[order.Symbol] = matcher
 				}
@@ -95,8 +125,10 @@ func (e *Engine) Stop() {
 	}
 	// 最后关闭事件通道：
 	close(e.eventCh)
-	// 延期关闭日志实例：
+	// （###延期？）关闭日志实例：
 	e.submitLogger.Close()
+	e.eventLogger.Close()
+	e.obMatchLogger.Close()
 }
 
 func (e *Engine) Submit(order *Order) error {

@@ -2,6 +2,7 @@ package matching
 
 import (
 	"context"
+	"ebidsystem_csm/internal/pkg/logger"
 	"fmt"
 	"log"
 	"sync"
@@ -14,7 +15,9 @@ type SymbolMatcher struct {
 	removeCh chan uint64
 	book     *OrderBook
 
-	eventCh chan<- MatchEvent
+	eventCh       chan<- MatchEvent
+	eventLogger   *logger.Logger
+	obMatchLogger *logger.Logger
 
 	seq      int64  //订单时间优先级（用于FIFO排序）
 	eventSeq uint64 //撮合事件编号（递增）
@@ -28,17 +31,21 @@ func NewSymbolMatcher(
 	parentCtx context.Context,
 	symbol string,
 	eventCh chan<- MatchEvent,
+	eventLogger *logger.Logger,
+	obMatchLogger *logger.Logger,
 ) *SymbolMatcher {
 	ctx, cancel := context.WithCancel(parentCtx)
 
 	return &SymbolMatcher{
-		symbol:   symbol,
-		orderCh:  make(chan *Order, 1024),
-		removeCh: make(chan uint64, 1024),
-		book:     NewOrderBook(),
-		eventCh:  eventCh,
-		ctx:      ctx,
-		cancel:   cancel,
+		symbol:        symbol,
+		book:          NewOrderBook(),
+		orderCh:       make(chan *Order, 1024),
+		removeCh:      make(chan uint64, 1024),
+		eventCh:       eventCh,
+		eventLogger:   eventLogger,
+		obMatchLogger: obMatchLogger,
+		ctx:           ctx,
+		cancel:        cancel,
 	}
 }
 
@@ -103,19 +110,20 @@ func (sm *SymbolMatcher) Remove(orderID uint64) {
 }
 
 func (sm *SymbolMatcher) matchAndEmit() {
-	events := sm.book.Match()
+	events := sm.book.Match(sm.obMatchLogger)
 
 	for _, ev := range events {
 		ev.EventID = sm.nextEventID() //撮合引擎直接生成事件ID
 
-		// log.Printf( //#
-		// 	"[SM_MATCH] symbol=%s buyID=%d sellID=%d qty=%d price=%.2f",
-		// 	sm.symbol,
-		// 	ev.BuyOrderID,
-		// 	ev.SellOrderID,
-		// 	ev.Quantity,
-		// 	ev.Price,
-		// )
+		// 输出日志：
+		message := fmt.Sprintf("[SM_MATCH] symbol=%s buyID=%d sellID=%d qty=%d price=%.2f",
+			sm.symbol,
+			ev.BuyOrderID,
+			ev.SellOrderID,
+			ev.Quantity,
+			ev.Price,
+		)
+		sm.eventLogger.Log(message)
 		// 事件输出（由 Engine fan-in）：
 		sm.eventCh <- ev
 	}
