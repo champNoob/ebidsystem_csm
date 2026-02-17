@@ -1,6 +1,6 @@
 package matching
 
-import "log"
+// import "log"
 
 func (ob *OrderBook) Match() []MatchEvent {
 	events := make([]MatchEvent, 0)
@@ -14,14 +14,14 @@ func (ob *OrderBook) Match() []MatchEvent {
 		}
 		// 本次成交量 = min(剩余量)：
 		qty := min(buy.Remaining, sell.Remaining)
-		log.Printf(
-			"[MATCHER_DEBUG] buyID=%d buyRem=%d sellID=%d sellRem=%d matchQty=%d",
-			buy.ID,
-			buy.Remaining,
-			sell.ID,
-			sell.Remaining,
-			qty,
-		)
+		// log.Printf(
+		// 	"[MATCHER_DEBUG] buyID=%d buyRem=%d sellID=%d sellRem=%d matchQty=%d",
+		// 	buy.ID,
+		// 	buy.Remaining,
+		// 	sell.ID,
+		// 	sell.Remaining,
+		// 	qty,
+		// )
 		// 生成撮合事件：
 		events = append(events, MatchEvent{
 			BuyOrderID:  buy.ID,

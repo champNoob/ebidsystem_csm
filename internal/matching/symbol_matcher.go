@@ -108,14 +108,14 @@ func (sm *SymbolMatcher) matchAndEmit() {
 	for _, ev := range events {
 		ev.EventID = sm.nextEventID() //撮合引擎直接生成事件ID
 
-		log.Printf(
-			"[SM_MATCH] symbol=%s buyID=%d sellID=%d qty=%d price=%.2f",
-			sm.symbol,
-			ev.BuyOrderID,
-			ev.SellOrderID,
-			ev.Quantity,
-			ev.Price,
-		)
+		// log.Printf( //#
+		// 	"[SM_MATCH] symbol=%s buyID=%d sellID=%d qty=%d price=%.2f",
+		// 	sm.symbol,
+		// 	ev.BuyOrderID,
+		// 	ev.SellOrderID,
+		// 	ev.Quantity,
+		// 	ev.Price,
+		// )
 		// 事件输出（由 Engine fan-in）：
 		sm.eventCh <- ev
 	}

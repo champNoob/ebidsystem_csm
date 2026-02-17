@@ -2,7 +2,7 @@ package matching
 
 import (
 	"context"
-	"ebidsystem_csm/internal/middleware"
+	"ebidsystem_csm/internal/pkg/logger"
 	"fmt"
 	"log"
 	"sync"
@@ -13,6 +13,8 @@ type Engine struct {
 	eventCh  chan MatchEvent
 	matchers map[string]*SymbolMatcher
 
+	submitLogger *logger.Logger
+
 	ctx    context.Context
 	cancel context.CancelFunc
 
@@ -22,12 +24,23 @@ type Engine struct {
 func NewEngine() *Engine {
 	ctx, cancel := context.WithCancel(context.Background())
 
+	submitLogger, err := logger.NewLogger(
+		200000,
+		"engine/engine_submit.log",
+		false,
+	)
+	if err != nil {
+		log.Printf("创建引擎日志失败: %v", err)
+		panic(err)
+	}
+
 	return &Engine{
-		orderCh:  make(chan *Order, 1024),
-		eventCh:  make(chan MatchEvent, 1024),
-		matchers: make(map[string]*SymbolMatcher),
-		ctx:      ctx,
-		cancel:   cancel,
+		orderCh:      make(chan *Order, 1024),
+		eventCh:      make(chan MatchEvent, 1024),
+		matchers:     make(map[string]*SymbolMatcher),
+		ctx:          ctx,
+		cancel:       cancel,
+		submitLogger: submitLogger,
 	}
 }
 
@@ -54,6 +67,7 @@ func (e *Engine) Start() {
 					e.matchers[order.Symbol] = matcher
 				}
 				matcher.Submit(order)
+				// 输出日志：
 				message := fmt.Sprintf(
 					"[ENGINE_SUBMIT] symbol=%s side=%s ID=%d price=%.2f remaining=%d",
 					order.Symbol,
@@ -62,7 +76,7 @@ func (e *Engine) Start() {
 					order.Price,
 					order.Remaining,
 				)
-				middleware.PrintLog(false, message, "log/orders/engine_submit.txt")
+				e.submitLogger.Log(message)
 			}
 		}
 	}()
@@ -81,6 +95,8 @@ func (e *Engine) Stop() {
 	}
 	// 最后关闭事件通道：
 	close(e.eventCh)
+	// 延期关闭日志实例：
+	e.submitLogger.Close()
 }
 
 func (e *Engine) Submit(order *Order) error {
