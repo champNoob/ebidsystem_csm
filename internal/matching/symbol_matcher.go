@@ -89,7 +89,13 @@ func (sm *SymbolMatcher) Stop() {
 func (sm *SymbolMatcher) Submit(order *Order) {
 	sm.seq++
 	order.Seq = sm.seq
-	sm.orderCh <- order
+	select {
+	case sm.orderCh <- order:
+	case <-sm.ctx.Done():
+		return
+	default:
+		//# 统计丢单
+	}
 }
 
 func (sm *SymbolMatcher) Remove(orderID uint64) {
@@ -103,7 +109,7 @@ func (sm *SymbolMatcher) matchAndEmit() {
 		ev.EventID = sm.nextEventID() //撮合引擎直接生成事件ID
 
 		log.Printf(
-			"[MATCH] symbol=%s buy=%d sell=%d qty=%d price=%.2f",
+			"[SM_MATCH] symbol=%s buyID=%d sellID=%d qty=%d price=%.2f",
 			sm.symbol,
 			ev.BuyOrderID,
 			ev.SellOrderID,

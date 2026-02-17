@@ -2,6 +2,8 @@ package matching
 
 import (
 	"context"
+	"ebidsystem_csm/internal/middleware"
+	"fmt"
 	"log"
 	"sync"
 )
@@ -41,7 +43,10 @@ func (e *Engine) Start() {
 				log.Printf("[MATCHING_ENGINE_STOP]")
 				return
 
-			case order := <-e.orderCh:
+			case order, ok := <-e.orderCh:
+				if !ok {
+					return //channel 已关闭，退出循环
+				}
 				matcher, ok := e.matchers[order.Symbol]
 				if !ok {
 					matcher = NewSymbolMatcher(e.ctx, order.Symbol, e.eventCh)
@@ -49,26 +54,32 @@ func (e *Engine) Start() {
 					e.matchers[order.Symbol] = matcher
 				}
 				matcher.Submit(order)
-				log.Printf(
-					"[MATCH] symbol=%s buySideID=%d sellSideID=%d price=%.2f quantity=%d",
+				message := fmt.Sprintf(
+					"[ENGINE_SUBMIT] symbol=%s side=%s ID=%d price=%.2f remaining=%d",
 					order.Symbol,
-					order.ID,
+					order.Side,
 					order.ID,
 					order.Price,
-					order.Quantity,
+					order.Remaining,
 				)
+				middleware.PrintLog(false, message, "log/orders/engine_submit.txt")
 			}
 		}
 	}()
 }
 
 func (e *Engine) Stop() {
+	// 先关闭订单通道：
+	close(e.orderCh)
+	// 再停止接受新订单：
 	e.cancel()
+	// 再等待引擎协程退出：
+	e.wg.Wait()
+	// 然后关闭所有撮合器：
 	for _, sm := range e.matchers {
 		sm.Stop()
 	}
-
-	e.wg.Wait()
+	// 最后关闭事件通道：
 	close(e.eventCh)
 }
 
