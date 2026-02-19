@@ -8,6 +8,10 @@ import (
 	"sync"
 )
 
+const (
+	LOG_BUFFER_SIZE = 50000
+)
+
 type Engine struct {
 	orderCh  chan *Order
 	eventCh  chan MatchEvent
@@ -27,7 +31,7 @@ func NewEngine() *Engine {
 	ctx, cancel := context.WithCancel(context.Background())
 	// 创建订单提交日志实例：
 	submitLogger, err := logger.NewLogger(
-		50000,
+		LOG_BUFFER_SIZE,
 		"engine/engine_submit.log",
 		false,
 	)
@@ -37,7 +41,7 @@ func NewEngine() *Engine {
 	}
 	// 创建撮合事件日志实例：
 	eventLogger, err := logger.NewLogger(
-		50000,
+		LOG_BUFFER_SIZE,
 		"engine/symbol_matcher_match.log",
 		false,
 	)
@@ -47,7 +51,7 @@ func NewEngine() *Engine {
 	}
 	// 创建订单簿撮合日志实例：
 	obMatchLogger, err := logger.NewLogger(
-		50000,
+		LOG_BUFFER_SIZE,
 		"engine/orderbook_match.log",
 		false,
 	)

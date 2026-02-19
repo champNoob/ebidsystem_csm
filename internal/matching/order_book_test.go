@@ -1,9 +1,13 @@
 package matching
 
-import "testing"
+import (
+	"ebidsystem_csm/internal/pkg/logger"
+	"testing"
+)
 
 func TestOrderBook_Match_Simple(t *testing.T) {
 	ob := NewOrderBook()
+	obMatchLogger, _ := logger.NewLogger(LOG_BUFFER_SIZE, "engine/orderbook_match.log", false)
 
 	buy := &Order{
 		ID:        1,
@@ -23,7 +27,7 @@ func TestOrderBook_Match_Simple(t *testing.T) {
 	ob.AddOrder(buy)
 	ob.AddOrder(sell)
 
-	events := ob.Match()
+	events := ob.Match(obMatchLogger)
 
 	if len(events) != 1 {
 		t.Fatalf("expected 1 match event, got %d", len(events))
