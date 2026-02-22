@@ -1,8 +1,11 @@
 package matching
 
-import "log"
+import (
+	"ebidsystem_csm/internal/pkg/logger"
+	"fmt"
+)
 
-func (ob *OrderBook) Match() []MatchEvent {
+func (ob *OrderBook) Match(logger *logger.Logger) []MatchEvent {
 	events := make([]MatchEvent, 0)
 
 	for len(ob.buyOrders) > 0 && len(ob.sellOrders) > 0 {
@@ -13,25 +16,29 @@ func (ob *OrderBook) Match() []MatchEvent {
 			break
 		}
 		// 本次成交量 = min(剩余量)：
-		qty := min(buy.Remaining, sell.Remaining)
-		log.Printf(
-			"[MATCH_DEBUG] buyID=%d buyRem=%d sellID=%d sellRem=%d matchQty=%d",
+		filledQty := min(buy.Remaining, sell.Remaining)
+		// 输出日志：
+		message := fmt.Sprintf(
+			"[MATCHER_DEBUG] symbol=%s buyID=%d buyRem=%d sellID=%d sellRem=%d filledQty=%d",
+			buy.Symbol,
 			buy.ID,
 			buy.Remaining,
 			sell.ID,
 			sell.Remaining,
-			qty,
+			filledQty,
 		)
-
+		logger.Log(message)
+		// 生成撮合事件：
 		events = append(events, MatchEvent{
+			Symbol:      buy.Symbol,
 			BuyOrderID:  buy.ID,
 			SellOrderID: sell.ID,
 			Price:       sell.Price,
-			Quantity:    qty,
+			Quantity:    filledQty,
 		})
 		// 扣减剩余量：
-		buy.Remaining -= qty
-		sell.Remaining -= qty
+		buy.Remaining -= filledQty
+		sell.Remaining -= filledQty
 		// 若买单或卖单吃完，则移出订单簿：
 		if buy.Remaining == 0 {
 			ob.buyOrders = ob.buyOrders[1:]

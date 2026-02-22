@@ -2,14 +2,19 @@ package matching
 
 import (
 	"context"
+	"ebidsystem_csm/internal/pkg/logger"
 	"testing"
 	"time"
 )
 
 func TestSymbolMatcher_MatchFlow(t *testing.T) {
 	eventCh := make(chan MatchEvent, 10)
-	ctx, _ := context.WithCancel(context.Background())
-	sm := NewSymbolMatcher(ctx, "AAPL", eventCh)
+	eventLogger, _ := logger.NewLogger(50000, "engine/symbol_matcher_match.log", true, false)
+	obMatchLogger, _ := logger.NewLogger(50000, "engine/orderbook_match.log", true, false)
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	sm := NewSymbolMatcher(ctx, "AAPL", eventCh, eventLogger, obMatchLogger)
 	sm.Start()
 	defer sm.Stop()
 
@@ -41,10 +46,14 @@ func TestSymbolMatcher_MatchFlow(t *testing.T) {
 	}
 }
 
-func TestSymbolMatcher_Remove(t *testing.T) {
+func TestSymbolMatcher_Remove(t *testing.T) { //#
 	eventCh := make(chan MatchEvent, 1)
-	ctx, _ := context.WithCancel(context.Background())
-	sm := NewSymbolMatcher(ctx, "AAPL", eventCh)
+	eventLogger, _ := logger.NewLogger(50000, "engine/symbol_matcher_match.log", true, false)
+	obMatchLogger, _ := logger.NewLogger(50000, "engine/orderbook_match.log", true, false)
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	sm := NewSymbolMatcher(ctx, "AAPL", eventCh, eventLogger, obMatchLogger)
 	sm.Start()
 	defer sm.Stop()
 
