@@ -28,11 +28,11 @@ func TestEngine_ConcurrentSubmit(t *testing.T) {
 
 			for j := 0; j < totalOrders/concurrency; j++ {
 				engine.Submit(&matching.Order{
-					ID:        uint64(worker*1000000 + j),
-					Symbol:    "AAPL",
-					Price:     10,
-					Remaining: 1,
-					Side:      matching.OrderSideBuy,
+					ID:       uint64(worker*1000000 + j),
+					Symbol:   "AAPL",
+					Price:    10,
+					Quantity: 1,
+					Side:     matching.OrderSideBuy,
 				})
 			}
 		}(i)
@@ -47,6 +47,7 @@ func TestEngine_ConcurrentSubmit(t *testing.T) {
 
 // 对冲撮合压力测试：
 func TestEngine_MatchPressure(t *testing.T) {
+	// 添加撮合引擎：
 	engine := matching.NewEngine()
 	engine.Start()
 
@@ -61,7 +62,7 @@ func TestEngine_MatchPressure(t *testing.T) {
 	}()
 
 	total := 100000
-	expectedMatches := total / 2 // 买卖单各半，理论上最多匹配 total/2 对
+	expectedMatches := total / 2 //买卖单各半，理论上最多匹配 total/2 对
 
 	start := time.Now()
 
@@ -73,11 +74,11 @@ func TestEngine_MatchPressure(t *testing.T) {
 		}
 
 		engine.Submit(&matching.Order{
-			ID:        uint64(i),
-			Symbol:    "AAPL",
-			Price:     10,
-			Remaining: 1,
-			Side:      side,
+			ID:       uint64(i),
+			Symbol:   "AAPL",
+			Price:    10,
+			Quantity: 1,
+			Side:     side,
 		})
 	}
 

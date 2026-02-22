@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	LOG_BUFFER_SIZE = 50000
+	LOG_BUFFER_SIZE = 100000
 )
 
 type Engine struct {
@@ -33,6 +33,7 @@ func NewEngine() *Engine {
 	submitLogger, err := logger.NewLogger(
 		LOG_BUFFER_SIZE,
 		"engine/engine_submit.log",
+		true,
 		false,
 	)
 	if err != nil {
@@ -43,6 +44,7 @@ func NewEngine() *Engine {
 	eventLogger, err := logger.NewLogger(
 		LOG_BUFFER_SIZE,
 		"engine/symbol_matcher_match.log",
+		true,
 		false,
 	)
 	if err != nil {
@@ -53,6 +55,7 @@ func NewEngine() *Engine {
 	obMatchLogger, err := logger.NewLogger(
 		LOG_BUFFER_SIZE,
 		"engine/orderbook_match.log",
+		true,
 		false,
 	)
 	if err != nil {
@@ -101,16 +104,6 @@ func (e *Engine) Start() {
 					e.matchers[order.Symbol] = matcher
 				}
 				matcher.Submit(order)
-				// 输出日志：
-				message := fmt.Sprintf(
-					"[ENGINE_SUBMIT] symbol=%s side=%s ID=%d price=%.2f remaining=%d",
-					order.Symbol,
-					order.Side,
-					order.ID,
-					order.Price,
-					order.Remaining,
-				)
-				e.submitLogger.Log(message)
 			}
 		}
 	}()
@@ -139,6 +132,17 @@ func (e *Engine) Submit(order *Order) error {
 	if order.Type == OrderTypeMarket {
 		return ErrMarketOrderNotSupported
 	}
+	// 输出日志：
+	message := fmt.Sprintf(
+		"[ENGINE_SUBMIT] symbol=%s side=%s ID=%d price=%.2f quantity=%d",
+		order.Symbol,
+		order.Side,
+		order.ID,
+		order.Price,
+		order.Quantity,
+	)
+	e.submitLogger.Log(message)
+
 	e.orderCh <- order
 	return nil
 }

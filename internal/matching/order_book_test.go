@@ -7,21 +7,19 @@ import (
 
 func TestOrderBook_Match_Simple(t *testing.T) {
 	ob := NewOrderBook()
-	obMatchLogger, _ := logger.NewLogger(LOG_BUFFER_SIZE, "engine/orderbook_match.log", false)
+	obMatchLogger, _ := logger.NewLogger(LOG_BUFFER_SIZE, "engine/orderbook_match.log", true, false)
 
 	buy := &Order{
-		ID:        1,
-		Side:      OrderSideBuy,
-		Price:     10,
-		Quantity:  10,
-		Remaining: 10,
+		ID:       1,
+		Side:     OrderSideBuy,
+		Price:    10,
+		Quantity: 10,
 	}
 	sell := &Order{
-		ID:        2,
-		Side:      OrderSideSell,
-		Price:     9,
-		Quantity:  7,
-		Remaining: 7,
+		ID:       2,
+		Side:     OrderSideSell,
+		Price:    9,
+		Quantity: 7,
 	}
 
 	ob.AddOrder(buy)

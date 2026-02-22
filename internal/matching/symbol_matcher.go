@@ -9,6 +9,10 @@ import (
 	"time"
 )
 
+var (
+	droppedOrderNum int64
+)
+
 type SymbolMatcher struct {
 	symbol   string
 	orderCh  chan *Order
@@ -87,6 +91,7 @@ func (sm *SymbolMatcher) Start() {
 }
 
 func (sm *SymbolMatcher) Stop() {
+	log.Printf("[SYMBOL_MATCHER_STOP] symbol=%s Dropped Order Num: %d", sm.symbol, droppedOrderNum)
 	sm.cancel()
 	close(sm.orderCh)
 	close(sm.removeCh)
@@ -96,13 +101,16 @@ func (sm *SymbolMatcher) Stop() {
 func (sm *SymbolMatcher) Submit(order *Order) {
 	sm.seq++
 	order.Seq = sm.seq
+	/* 非阻塞写法会丢单（约30%）：
 	select {
 	case sm.orderCh <- order:
 	case <-sm.ctx.Done():
 		return
 	default:
-		//# 统计丢单
+		atomic.AddInt64(&droppedOrderNum, 1) //统计丢单
 	}
+	*/
+	sm.orderCh <- order //阻塞架构
 }
 
 func (sm *SymbolMatcher) Remove(orderID uint64) {
@@ -116,7 +124,7 @@ func (sm *SymbolMatcher) matchAndEmit() {
 		ev.EventID = sm.nextEventID() //撮合引擎直接生成事件ID
 
 		// 输出日志：
-		message := fmt.Sprintf("[SM_MATCH] symbol=%s buyID=%d sellID=%d qty=%d price=%.2f",
+		message := fmt.Sprintf("[SM_MATCH] symbol=%s buyID=%d sellID=%d matchQty=%d price=%.2f",
 			sm.symbol,
 			ev.BuyOrderID,
 			ev.SellOrderID,

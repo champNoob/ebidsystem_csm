@@ -21,7 +21,12 @@ type Logger struct {
 	isConsole bool
 }
 
-func NewLogger(buffer int, filePath string, console bool) (*Logger, error) {
+func NewLogger(
+	buffer int,
+	filePath string,
+	isOverWrite bool,
+	console bool,
+) (*Logger, error) {
 	var f *os.File
 	var err error
 
@@ -40,6 +45,12 @@ func NewLogger(buffer int, filePath string, console bool) (*Logger, error) {
 	f, err = os.OpenFile(realPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		return nil, fmt.Errorf("创建文件失败: %v", err)
+	}
+	// 清空文件内容：
+	if isOverWrite {
+		if err := os.Truncate(realPath, 0); err != nil && !os.IsNotExist(err) {
+			log.Fatalf("清空日志文件失败 %s: %v", realPath, err)
+		}
 	}
 	// 创建日志实例：
 	l := &Logger{

@@ -16,6 +16,7 @@ func TestLogger_SimpleWrite(t *testing.T) {
 	submitLogger, err := NewLogger(
 		1000,
 		"engine/engine_submit.log",
+		true,
 		false,
 	)
 	if err != nil {
@@ -43,7 +44,12 @@ func TestLogger_ConcurrentWrites(t *testing.T) {
 	}
 
 	// 创建logger实例，增大缓冲区
-	logger, err := NewLogger(1000, logFile, false)
+	logger, err := NewLogger(
+		1000,
+		logFile,
+		true,
+		false,
+	)
 	if err != nil {
 		t.Fatalf("创建logger失败: %v", err)
 	}
@@ -119,7 +125,11 @@ func TestLogger_BufferOverflow(t *testing.T) {
 	}
 
 	// 创建小缓冲区的logger
-	logger, err := NewLogger(10, logFile, false)
+	logger, err := NewLogger(10,
+		logFile,
+		true,
+		false,
+	)
 	if err != nil {
 		t.Fatalf("创建logger失败: %v", err)
 	}
