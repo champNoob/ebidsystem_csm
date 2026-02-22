@@ -2,8 +2,15 @@ package matching
 
 import (
 	"context"
+	"ebidsystem_csm/internal/pkg/logger"
 	"fmt"
 	"log"
+	"sync"
+	"time"
+)
+
+var (
+	droppedOrderNum int64
 )
 
 type SymbolMatcher struct {
@@ -12,59 +19,98 @@ type SymbolMatcher struct {
 	removeCh chan uint64
 	book     *OrderBook
 
-	eventCh chan<- MatchEvent
+	eventCh       chan<- MatchEvent
+	eventLogger   *logger.Logger
+	obMatchLogger *logger.Logger
+
+	seq      int64  //订单时间优先级（用于FIFO排序）
+	eventSeq uint64 //撮合事件编号（递增）
 
 	ctx    context.Context
 	cancel context.CancelFunc
-
-	seq      int64
-	eventSeq uint64 //递增序列号
+	wg     sync.WaitGroup
 }
 
 func NewSymbolMatcher(
+	parentCtx context.Context,
 	symbol string,
 	eventCh chan<- MatchEvent,
+	eventLogger *logger.Logger,
+	obMatchLogger *logger.Logger,
 ) *SymbolMatcher {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(parentCtx)
 
 	return &SymbolMatcher{
-		symbol:   symbol,
-		orderCh:  make(chan *Order, 1024),
-		removeCh: make(chan uint64, 1024),
-		book:     NewOrderBook(),
-		eventCh:  eventCh,
-		ctx:      ctx,
-		cancel:   cancel,
+		symbol:        symbol,
+		book:          NewOrderBook(),
+		orderCh:       make(chan *Order, 1024),
+		removeCh:      make(chan uint64, 1024),
+		eventCh:       eventCh,
+		eventLogger:   eventLogger,
+		obMatchLogger: obMatchLogger,
+		ctx:           ctx,
+		cancel:        cancel,
 	}
 }
 
 func (sm *SymbolMatcher) Start() {
+	sm.wg.Add(1)
+
 	go func() {
+		defer sm.wg.Done()
+
 		for {
 			select {
 			case <-sm.ctx.Done():
 				log.Printf("[SYMBOL_MATCHER_STOP] symbol=%s", sm.symbol)
 				return
 
-			case order := <-sm.orderCh:
-				sm.book.AddOrder(order)
-				sm.matchAndEmit()
-
-			case orderID := <-sm.removeCh:
+			case orderID, ok := <-sm.removeCh: //优先响应撤单
+				if !ok {
+					return
+				}
 				sm.book.Remove(orderID)
+
+			default: //#公平竞争撤单和下单
+				select {
+				case order, ok := <-sm.orderCh:
+					if !ok {
+						return
+					}
+					sm.book.AddOrder(order)
+					sm.matchAndEmit()
+				case orderID, ok := <-sm.removeCh:
+					if !ok {
+						return
+					}
+					sm.book.Remove(orderID)
+				}
 			}
 		}
 	}()
 }
 
 func (sm *SymbolMatcher) Stop() {
+	log.Printf("[SYMBOL_MATCHER_STOP] symbol=%s Dropped Order Num: %d", sm.symbol, droppedOrderNum)
 	sm.cancel()
+	close(sm.orderCh)
+	close(sm.removeCh)
+	sm.wg.Wait()
 }
 
 func (sm *SymbolMatcher) Submit(order *Order) {
 	sm.seq++
 	order.Seq = sm.seq
-	sm.orderCh <- order
+	/* 非阻塞写法会丢单（约30%）：
+	select {
+	case sm.orderCh <- order:
+	case <-sm.ctx.Done():
+		return
+	default:
+		atomic.AddInt64(&droppedOrderNum, 1) //统计丢单
+	}
+	*/
+	sm.orderCh <- order //阻塞架构
 }
 
 func (sm *SymbolMatcher) Remove(orderID uint64) {
@@ -72,19 +118,20 @@ func (sm *SymbolMatcher) Remove(orderID uint64) {
 }
 
 func (sm *SymbolMatcher) matchAndEmit() {
-	events := sm.book.Match()
+	events := sm.book.Match(sm.obMatchLogger)
 
 	for _, ev := range events {
 		ev.EventID = sm.nextEventID() //撮合引擎直接生成事件ID
 
-		log.Printf(
-			"[MATCH] symbol=%s buy=%d sell=%d qty=%d price=%.2f",
+		// 输出日志：
+		message := fmt.Sprintf("[SM_MATCH] symbol=%s buyID=%d sellID=%d matchQty=%d price=%.2f",
 			sm.symbol,
 			ev.BuyOrderID,
 			ev.SellOrderID,
 			ev.Quantity,
 			ev.Price,
 		)
+		sm.eventLogger.Log(message)
 		// 事件输出（由 Engine fan-in）：
 		sm.eventCh <- ev
 	}
@@ -92,5 +139,9 @@ func (sm *SymbolMatcher) matchAndEmit() {
 
 func (sm *SymbolMatcher) nextEventID() string {
 	sm.eventSeq++
-	return fmt.Sprintf("%s-%d", sm.symbol, sm.eventSeq)
+	return fmt.Sprintf("%s-%d-%d",
+		sm.symbol,
+		time.Now().UnixNano(),
+		sm.eventSeq,
+	)
 }
