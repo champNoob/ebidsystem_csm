@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -19,6 +20,7 @@ type Logger struct {
 	file      *os.File
 	wg        sync.WaitGroup
 	isConsole bool
+	closed    atomic.Bool
 }
 
 func NewLogger(
@@ -78,22 +80,24 @@ func (l *Logger) run() {
 		}
 		if l.file != nil {
 			_, _ = l.file.WriteString(msg + "\n")
-			// 移除强制同步，提高性能
-			// _ = l.file.Sync() // 强制日志立即写入文件
 		}
 	}
 }
 
 func (l *Logger) Log(msg string) {
+	if l.closed.Load() {
+		return
+	}
 	select {
 	case l.ch <- msg:
 	default:
 		log.Printf("日志被丢弃，channel已满: %s", msg)
-		//# 丢弃日志，避免阻塞撮合主流程
+		// 丢弃日志，避免阻塞撮合主流程
 	}
 }
 
 func (l *Logger) Close() {
+	l.closed.Store(true)
 	close(l.ch)
 
 	// 添加超时机制，避免无限等待：

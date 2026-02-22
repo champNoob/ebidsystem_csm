@@ -122,7 +122,7 @@ func (e *Engine) Stop() {
 	}
 	// 最后关闭事件通道：
 	close(e.eventCh)
-	// （###延期？）关闭日志实例：
+	// 向各日志实例发送停止信号：
 	e.submitLogger.Close()
 	e.eventLogger.Close()
 	e.obMatchLogger.Close()

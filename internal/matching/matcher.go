@@ -19,7 +19,8 @@ func (ob *OrderBook) Match(logger *logger.Logger) []MatchEvent {
 		filledQty := min(buy.Remaining, sell.Remaining)
 		// 输出日志：
 		message := fmt.Sprintf(
-			"[MATCHER_DEBUG] buyID=%d buyRem=%d sellID=%d sellRem=%d filledQty=%d",
+			"[MATCHER_DEBUG] symbol=%s buyID=%d buyRem=%d sellID=%d sellRem=%d filledQty=%d",
+			buy.Symbol,
 			buy.ID,
 			buy.Remaining,
 			sell.ID,
@@ -29,6 +30,7 @@ func (ob *OrderBook) Match(logger *logger.Logger) []MatchEvent {
 		logger.Log(message)
 		// 生成撮合事件：
 		events = append(events, MatchEvent{
+			Symbol:      buy.Symbol,
 			BuyOrderID:  buy.ID,
 			SellOrderID: sell.ID,
 			Price:       sell.Price,
