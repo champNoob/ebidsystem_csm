@@ -13,6 +13,8 @@ import (
 var (
 	logDir     string
 	logDirOnce sync.Once
+
+	realPath string
 )
 
 type Logger struct {
@@ -21,6 +23,7 @@ type Logger struct {
 	wg        sync.WaitGroup
 	isConsole bool
 	closed    atomic.Bool
+	dropped   atomic.Uint64 //丢弃信息数
 }
 
 func NewLogger(
@@ -32,7 +35,11 @@ func NewLogger(
 	var f *os.File
 	var err error
 
-	realPath := getLogDir() + "/" + filePath
+	if filepath.IsAbs(filePath) {
+		realPath = filePath
+	} else {
+		realPath = filepath.Join(getLogDir(), filePath)
+	}
 
 	// 确保路径合法：
 	if realPath == "" {
@@ -90,14 +97,17 @@ func (l *Logger) Log(msg string) {
 	}
 	select {
 	case l.ch <- msg:
-	default:
-		log.Printf("日志被丢弃，channel已满: %s", msg)
-		// 丢弃日志，避免阻塞撮合主流程
+	default: //丢弃日志，避免阻塞撮合主流程
+		// log.Printf("日志被丢弃，channel已满: %s", msg)
+		l.dropped.Add(1)
 	}
 }
 
 func (l *Logger) Close() {
-	l.closed.Store(true)
+	if !l.closed.CompareAndSwap(false, true) {
+		return
+	}
+
 	close(l.ch)
 
 	// 添加超时机制，避免无限等待：
@@ -112,6 +122,10 @@ func (l *Logger) Close() {
 		//正常等待完成
 	case <-time.After(5 * time.Second):
 		log.Printf("WARNING: Logger close timeout, forcing shutdown") //超时后强制关闭
+	}
+
+	if dropped := l.dropped.Load(); dropped > 0 { //输出丢弃信息的总数
+		log.Printf("Logger dropped %d messages", dropped)
 	}
 
 	if l.file != nil {

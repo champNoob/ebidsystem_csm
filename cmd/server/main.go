@@ -43,6 +43,7 @@ func main() {
 
 	// 5. 初始化服务层（service）
 	orderService := service.NewOrderService(orderRepo, engine)
+	defer orderService.Close()
 	userService := service.NewUserService(userRepo)
 	orderService.StartMatchEventListener() //启动撮合事件监听器
 
