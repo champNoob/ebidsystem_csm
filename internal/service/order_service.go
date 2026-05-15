@@ -92,7 +92,9 @@ func (s *OrderService) CreateOrder(
 		Price:    *order.Price,
 		Quantity: order.Quantity,
 	}
-	s.matcher.Submit(matchingOrder)
+	if err := s.matcher.Submit(matchingOrder); err != nil {
+		return err
+	}
 
 	return nil
 }
