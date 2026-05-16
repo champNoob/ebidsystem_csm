@@ -8,48 +8,65 @@ import (
 func TestEngine_MultiSymbolIsolation(t *testing.T) {
 	engine := NewEngine()
 	engine.Start()
+	defer engine.Stop()
 
 	// AAPL
-	engine.Submit(&Order{
+	if err := engine.Submit(&Order{
 		ID:       1,
 		Symbol:   "AAPL",
 		Side:     OrderSideBuy,
 		Price:    10,
 		Quantity: 10,
-	})
-	engine.Submit(&Order{
+	}); err != nil {
+		t.Fatalf("failed to submit order: %v", err)
+	}
+	if err := engine.Submit(&Order{
 		ID:       2,
 		Symbol:   "AAPL",
 		Side:     OrderSideSell,
 		Price:    9,
 		Quantity: 5,
-	})
+	}); err != nil {
+		t.Fatalf("failed to submit order: %v", err)
+	}
 
 	// TSLA
-	engine.Submit(&Order{
+	if err := engine.Submit(&Order{
 		ID:       3,
 		Symbol:   "TSLA",
 		Side:     OrderSideBuy,
 		Price:    20,
 		Quantity: 7,
-	})
-	engine.Submit(&Order{
+	}); err != nil {
+		t.Fatalf("failed to submit order: %v", err)
+	}
+	if err := engine.Submit(&Order{
 		ID:       4,
 		Symbol:   "TSLA",
 		Side:     OrderSideSell,
 		Price:    19,
 		Quantity: 7,
-	})
+	}); err != nil {
+		t.Fatalf("failed to submit order: %v", err)
+	}
 
-	received := 0
+	receivedAAPL := 0
+	receivedTSLA := 0
 	timeout := time.After(time.Second)
 
-	for received < 2 {
+	for receivedAAPL < 1 || receivedTSLA < 1 {
 		select {
-		case <-engine.Events():
-			received++
+		case event := <-engine.Events():
+			switch event.Symbol {
+			case "AAPL":
+				receivedAAPL++
+			case "TSLA":
+				receivedTSLA++
+			default:
+				t.Fatalf("unexpected symbol: %s", event.Symbol)
+			}
 		case <-timeout:
-			t.Fatalf("expected 2 events, got %d", received)
+			t.Fatalf("expected 2 events, got %d", receivedAAPL+receivedTSLA)
 		}
 	}
 }
