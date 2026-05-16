@@ -20,8 +20,8 @@ func RequireRole(allowedRoles ...string) gin.HandlerFunc {
 			c.AbortWithStatusJSON(
 				http.StatusForbidden,
 				gin.H{
-					"code":    service.ErrRoleNotFount.Code,
-					"message": service.ErrRoleNotFount.Message,
+					"code":    service.ErrRoleNotFound.Code,
+					"message": service.ErrRoleNotFound.Message,
 				},
 			)
 			return

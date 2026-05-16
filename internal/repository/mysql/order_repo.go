@@ -335,10 +335,11 @@ func (r *OrderRepo) CreateTradeTx(
 	_, err := tx.ExecContext(
 		ctx,
 		`
-		INSERT INTO trades (event_id, buy_order_id, sell_order_id, price, quantity)
-		VALUES (?, ?, ?, ?, ?)
+		INSERT INTO trades (event_id,symbol, buy_order_id, sell_order_id, price, quantity)
+		VALUES (?, ?, ?, ?, ?, ?)
 		`,
 		trade.EventID,
+		trade.Symbol,
 		trade.BuyOrderID,
 		trade.SellOrderID,
 		trade.Price,

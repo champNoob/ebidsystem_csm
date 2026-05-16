@@ -38,7 +38,7 @@ var (
 		Code:    "AUTH_INVALID_TOKEN_CLAIM",
 		Message: "token claim不合法",
 	}
-	ErrRoleNotFount = &BusinessError{
+	ErrRoleNotFound = &BusinessError{
 		Code:    "AUTH_ROLE_NOT_FOUND",
 		Message: "角色不存在",
 	}
