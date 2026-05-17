@@ -113,8 +113,20 @@ func (s *OrderService) ListOrders(
 	}
 
 	switch role {
-	case "admin", "trader":
+	case "admin":
 		return s.repo.FindAll(ctx, statuses)
+
+	case "trader":
+		if status == "" || status == "current" {
+			return s.repo.FindAll(ctx, []model.OrderStatus{
+				model.OrderStatusPending,
+				model.OrderStatusPartial,
+			})
+		}
+		return nil, ErrPermissionDenied
+
+	case "sales":
+		return s.repo.FindByUserID(ctx, userID, statuses) //#未来需要区分userID和tgtID
 
 	case "client", "seller":
 		return s.repo.FindByUserID(ctx, userID, statuses)
