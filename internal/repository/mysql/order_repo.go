@@ -21,9 +21,9 @@ func NewOrderRepo(db *sql.DB) *OrderRepo {
 func (r *OrderRepo) Create(ctx context.Context, o *model.Order) (uint64, error) {
 
 	query := `
-INSERT INTO orders (user_id, symbol, side, price, quantity, filled_quantity, status)
-VALUES (?, ?, ?, ?, ?, 0, ?)
-`
+	INSERT INTO orders (user_id, symbol, side, price, quantity, filled_quantity, status)
+	VALUES (?, ?, ?, ?, ?, 0, ?)
+	`
 	result, err := r.db.ExecContext(
 		ctx,
 		query,

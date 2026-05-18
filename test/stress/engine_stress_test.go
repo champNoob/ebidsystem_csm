@@ -1,6 +1,7 @@
 package stress
 
 import (
+	"log"
 	"sync"
 	"testing"
 	"time"
@@ -27,13 +28,16 @@ func TestEngine_ConcurrentSubmit(t *testing.T) {
 			defer wg.Done()
 
 			for j := 0; j < totalOrders/concurrency; j++ {
-				engine.Submit(&matching.Order{
+				err := engine.Submit(&matching.Order{
 					ID:       uint64(worker*10*totalOrders + j),
 					Symbol:   "AAPL",
 					Price:    10,
 					Quantity: 1,
-					Side:     matching.OrderSideBuy,
+					Side:     matching.OrderSideSell,
 				})
+				if err != nil {
+					log.Println(err)
+				}
 			}
 		}(i)
 	}
@@ -41,7 +45,6 @@ func TestEngine_ConcurrentSubmit(t *testing.T) {
 	wg.Wait()
 
 	elapsed := time.Since(start)
-
 	t.Logf("Submitted %d orders in %v", totalOrders, elapsed)
 }
 
@@ -52,10 +55,10 @@ func TestEngine_MatchPressure(t *testing.T) {
 	engine.Start()
 
 	var (
-		eventCount int
-		events     []matching.MatchEvent
-		mu         sync.Mutex
-		eventDone  = make(chan struct{})
+		// eventCount int
+		events    []matching.MatchEvent
+		mu        sync.Mutex
+		eventDone = make(chan struct{})
 	)
 
 	// 启动 event 消费者：
@@ -64,7 +67,7 @@ func TestEngine_MatchPressure(t *testing.T) {
 		for ev := range engine.Events() {
 			mu.Lock()
 			events = append(events, ev)
-			eventCount++
+			// eventCount++
 			mu.Unlock()
 		}
 	}()
@@ -81,13 +84,15 @@ func TestEngine_MatchPressure(t *testing.T) {
 			side = matching.OrderSideSell
 		}
 
-		engine.Submit(&matching.Order{
+		if err := engine.Submit(&matching.Order{
 			ID:       uint64(i),
 			Symbol:   "AAPL",
 			Price:    10,
 			Quantity: 1,
 			Side:     side,
-		})
+		}); err != nil {
+			t.Fatalf("submit order failed: %v", err)
+		}
 	}
 
 	// 记录提交时间：
@@ -99,16 +104,17 @@ func TestEngine_MatchPressure(t *testing.T) {
 
 	// 等待撮合完成：
 	t.Log("Waiting for matching to complete...")
-	time.Sleep(5 * time.Second)
+	waitForEventCount(t, &mu, &events, expectedMatches, 30*time.Second)
 
 	// 停止引擎：
 	engine.Stop()
 	// 等待事件处理完成：
 	select {
 	case <-eventDone:
-		t.Logf("Processed %d match events", eventCount)
+		// t.Logf("Processed %d match events", eventCount)
 	case <-time.After(30 * time.Second):
-		t.Logf("WARNING: Event processing timeout, processed %d events", eventCount)
+		// t.Logf("Warning: Event processing timeout, processed %d events", eventCount)
+		t.Fatalf("Event processing timeout")
 	}
 
 	/* --- 验证撮合结果 --- */
@@ -121,20 +127,19 @@ func TestEngine_MatchPressure(t *testing.T) {
 			t.Logf("WARNING: Match performance below expectation. Expected ~%d, got %d", expectedMatches, eventCount)
 		}
 	*/
-	if eventCount != expectedMatches {
-		t.Fatalf("Match count incorrect: expected %d, got %d", expectedMatches, eventCount)
+	gotEvents := snapshotEvents(&mu, events)
+	if len(gotEvents) != expectedMatches {
+		t.Fatalf("match count incorrect: expected %d, got %d", expectedMatches, len(gotEvents))
 	}
 	// 2. Quantity 校验：
-	for _, ev := range events {
+	for _, ev := range gotEvents {
 		if ev.Quantity != 1 {
-			t.Fatalf("Invalid match quantity: %d", ev.Quantity)
+			t.Fatalf("invalid match quantity: %d", ev.Quantity)
 		}
 	}
-
 	// 3. ID 唯一性校验：
 	seenBuy := make(map[uint64]bool)
 	seenSell := make(map[uint64]bool)
-
 	for _, ev := range events {
 		if seenBuy[ev.BuyOrderID] {
 			t.Fatalf("Duplicate buy order matched: %d", ev.BuyOrderID)
@@ -206,13 +211,15 @@ func TestEngine_MultiSymbolPressure(t *testing.T) {
 					side = matching.OrderSideSell
 				}
 
-				engine.Submit(&matching.Order{
+				if err := engine.Submit(&matching.Order{
 					ID:       uint64(idBase + i),
 					Symbol:   symbol,
 					Price:    10,
 					Quantity: 1,
 					Side:     side,
-				})
+				}); err != nil {
+					t.Errorf("submit order failed: %v", err)
+				}
 			}
 		}()
 	}
@@ -224,7 +231,7 @@ func TestEngine_MultiSymbolPressure(t *testing.T) {
 		totalOrders, symbolCount, submitElapsed)
 
 	t.Log("Waiting for matching...")
-	time.Sleep(5 * time.Second)
+	waitForEventCount(t, &mu, &events, expectedTotalMatches, 30*time.Second)
 
 	engine.Stop()
 
@@ -234,6 +241,7 @@ func TestEngine_MultiSymbolPressure(t *testing.T) {
 		t.Fatal("Event consumer timeout")
 	}
 
+	gotEvents := snapshotEvents(&mu, events)
 	totalMatches := len(events)
 	t.Logf("Total matches: %d", totalMatches)
 
@@ -246,7 +254,7 @@ func TestEngine_MultiSymbolPressure(t *testing.T) {
 	}
 	// 2. 每个 symbol 匹配数验证：
 	perSymbolCount := make(map[string]int)
-	for _, ev := range events {
+	for _, ev := range gotEvents {
 		perSymbolCount[ev.Symbol]++
 	}
 	for _, sym := range symbols {
@@ -258,7 +266,7 @@ func TestEngine_MultiSymbolPressure(t *testing.T) {
 	// 3. 唯一性校验：
 	seenBuy := make(map[uint64]bool)
 	seenSell := make(map[uint64]bool)
-	for _, ev := range events {
+	for _, ev := range gotEvents {
 		if ev.Quantity != 1 {
 			t.Fatalf("Invalid quantity: %d", ev.Quantity)
 		}
@@ -283,4 +291,43 @@ func hashSymbol(sym string) int {
 		h += int(sym[i])
 	}
 	return h * 1000000
+}
+
+func waitForEventCount(
+	t *testing.T,
+	mu *sync.Mutex,
+	events *[]matching.MatchEvent,
+	expected int,
+	timeout time.Duration,
+) {
+	t.Helper()
+
+	deadline := time.After(timeout)
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		mu.Lock()
+		count := len(*events)
+		mu.Unlock()
+
+		if count >= expected {
+			return
+		}
+
+		select {
+		case <-ticker.C:
+		case <-deadline:
+			t.Fatalf("timeout waiting for events: expected %d, got %d", expected, count)
+		}
+	}
+}
+
+func snapshotEvents(mu *sync.Mutex, events []matching.MatchEvent) []matching.MatchEvent {
+	mu.Lock()
+	defer mu.Unlock()
+
+	copied := make([]matching.MatchEvent, len(events))
+	copy(copied, events)
+	return copied
 }

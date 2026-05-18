@@ -79,6 +79,10 @@ var (
 		Code:    "USER_PASSWORD_TOO_SHORT",
 		Message: "密码长度不足 8 位",
 	}
+	ErrPasswordTooLong = &BusinessError{
+		Code:    "USER_PASSWORD_TOO_LONG",
+		Message: "密码长度超过 50 位",
+	}
 
 	// 订单侧：
 	ErrInvalidOrderID = &BusinessError{
