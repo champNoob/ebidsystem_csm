@@ -1,9 +1,10 @@
 package config
 
 type Config struct {
-	Server ServerConfig `yaml:"server"`
-	MySQL  MySQLConfig  `yaml:"mysql"`
-	Redis  RedisConfig  `yaml:"redis"`
+	Server    ServerConfig `yaml:"server"`
+	MySQL     MySQLConfig  `yaml:"mysql"`
+	MySQLTest MySQLConfig  `yaml:"mysql_test"`
+	Redis     RedisConfig  `yaml:"redis"`
 }
 
 type ServerConfig struct {

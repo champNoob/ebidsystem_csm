@@ -81,7 +81,7 @@ func (r *UserRepo) Create(ctx context.Context, user *model.User) error {
 		user.Role,
 	)
 	if err != nil {
-		log.Printf("? %v", err)
+		log.Printf("%v", err)
 	}
 	return err
 }

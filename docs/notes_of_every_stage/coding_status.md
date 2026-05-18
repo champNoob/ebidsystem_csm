@@ -293,11 +293,13 @@ func (s OrderStatus) CanCancel() bool {
 
 ## step 14: 统一日志系统
 
-- 在 `pkg/looger` 包中封装日志系统，对外暴露 `Log` 和 `Close` 方法
+- 在 `pkg/logger` 包中封装日志系统，对外暴露 `Log` 和 `Close` 方法
 
 - 撮合引擎接入日志系统
 
 ## step 15: 业务完善
+
+- 补全sales、admin角色的功能。
 
 ### 引擎重启恢复机制
 

@@ -5,17 +5,38 @@ import (
 	"database/sql"
 	"ebidsystem_csm/internal/matching"
 	"ebidsystem_csm/internal/model"
+	"ebidsystem_csm/internal/pkg/logger"
 	"ebidsystem_csm/internal/repository"
-	"log"
+	"fmt"
 )
 
 type OrderService struct {
-	repo    repository.OrderRepository
-	matcher *matching.Engine
+	repo             repository.OrderRepository
+	matcher          *matching.Engine
+	matchEventLogger *logger.Logger
 }
 
 func NewOrderService(repo repository.OrderRepository, matcher *matching.Engine) *OrderService {
-	return &OrderService{repo: repo, matcher: matcher}
+	matchEventLogger, err := logger.NewLogger(
+		10000,
+		"order/match_event_error.log",
+		true,
+		false,
+	)
+	if err != nil {
+		matchEventLogger = nil //日志初始化失败不应阻止订单服务创建
+	}
+	return &OrderService{
+		repo:             repo,
+		matcher:          matcher,
+		matchEventLogger: matchEventLogger,
+	}
+}
+
+func (s *OrderService) Close() {
+	if s.matchEventLogger != nil {
+		s.matchEventLogger.Close()
+	}
 }
 
 // CreateOrder 下单
@@ -71,7 +92,9 @@ func (s *OrderService) CreateOrder(
 		Price:    *order.Price,
 		Quantity: order.Quantity,
 	}
-	s.matcher.Submit(matchingOrder)
+	if err := s.matcher.Submit(matchingOrder); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -90,8 +113,20 @@ func (s *OrderService) ListOrders(
 	}
 
 	switch role {
-	case "admin", "trader":
+	case "admin":
 		return s.repo.FindAll(ctx, statuses)
+
+	case "trader":
+		if status == "" || status == "current" {
+			return s.repo.FindAll(ctx, []model.OrderStatus{
+				model.OrderStatusPending,
+				model.OrderStatusPartial,
+			})
+		}
+		return nil, ErrPermissionDenied
+
+	case "sales":
+		return s.repo.FindByUserID(ctx, userID, statuses) //#未来需要区分userID和tgtID
 
 	case "client", "seller":
 		return s.repo.FindByUserID(ctx, userID, statuses)
@@ -120,6 +155,7 @@ func parseOrderQueryStatus(s string) ([]model.OrderStatus, error) {
 	}
 }
 
+// CancelOrder 取消订单
 func (s *OrderService) CancelOrder(
 	ctx context.Context,
 	orderID int64,
@@ -163,9 +199,16 @@ func (s *OrderService) StartMatchEventListener() {
 		for {
 			select {
 			case ev := <-s.matcher.Events():
-				log.Print("matching event catched") //--
+				// log.Print("matching event catched") //--
 				if err := s.handleMatchEvent(ctx, ev); err != nil {
-					log.Printf("[MATCH_EVENT_ERROR] %v", err)
+					s.matchEventLogger.Log(fmt.Sprintf(
+						"[MATCH_EVENT_ERROR] eventID=%s symbol=%s buyID=%d sellID=%d err=%v",
+						ev.EventID,
+						ev.Symbol,
+						ev.BuyOrderID,
+						ev.SellOrderID,
+						err,
+					))
 				}
 			case <-ctx.Done():
 				return
@@ -206,6 +249,7 @@ func (s *OrderService) handleMatchEvent(
 		// 3. 成交（幂等）
 		trade := &model.Trade{
 			EventID:     ev.EventID,
+			Symbol:      ev.Symbol,
 			BuyOrderID:  ev.BuyOrderID,
 			SellOrderID: ev.SellOrderID,
 			Price:       ev.Price,

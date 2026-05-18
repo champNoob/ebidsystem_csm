@@ -21,9 +21,9 @@ func NewOrderRepo(db *sql.DB) *OrderRepo {
 func (r *OrderRepo) Create(ctx context.Context, o *model.Order) (uint64, error) {
 
 	query := `
-INSERT INTO orders (user_id, symbol, side, price, quantity, filled_quantity, status)
-VALUES (?, ?, ?, ?, ?, 0, ?)
-`
+	INSERT INTO orders (user_id, symbol, side, price, quantity, filled_quantity, status)
+	VALUES (?, ?, ?, ?, ?, 0, ?)
+	`
 	result, err := r.db.ExecContext(
 		ctx,
 		query,
@@ -335,10 +335,11 @@ func (r *OrderRepo) CreateTradeTx(
 	_, err := tx.ExecContext(
 		ctx,
 		`
-		INSERT INTO trades (event_id, buy_order_id, sell_order_id, price, quantity)
-		VALUES (?, ?, ?, ?, ?)
+		INSERT INTO trades (event_id,symbol, buy_order_id, sell_order_id, price, quantity)
+		VALUES (?, ?, ?, ?, ?, ?)
 		`,
 		trade.EventID,
+		trade.Symbol,
 		trade.BuyOrderID,
 		trade.SellOrderID,
 		trade.Price,

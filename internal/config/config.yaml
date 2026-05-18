@@ -4,6 +4,9 @@ server:
 mysql:
   dsn: "root:jiongs@tcp(127.0.0.1:3306)/ebidsystem?charset=utf8mb4&parseTime=True&loc=Local"
 
+mysql_test:
+  dsn: "root:jiongs@tcp(127.0.0.1:3306)/ebidsystem_test?charset=utf8mb4&parseTime=True&loc=Local"
+
 redis:
   addr: "127.0.0.1:6379"
   password: ""
