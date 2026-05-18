@@ -39,21 +39,25 @@ func main() {
 
 	// 4. 初始化仓储层（repository）
 	userRepo := mysql.NewUserRepo(db.MySQL)
+	adminRepo := mysql.NewAdminRepo(db.MySQL)
 	orderRepo := mysql.NewOrderRepo(db.MySQL)
 
 	// 5. 初始化服务层（service）
 	orderService := service.NewOrderService(orderRepo, engine)
 	defer orderService.Close()
 	userService := service.NewUserService(userRepo)
+	adminService := service.NewAdminService(adminRepo)
 	orderService.StartMatchEventListener() //启动撮合事件监听器
 
 	// 6. 初始化处理器（Handler）
 	userHandler := handler.NewUserHandler(userService)
 	orderHandler := handler.NewOrderHandler(orderService)
+	adminHandler := handler.NewAdminHandler(adminService)
 
 	// 7. 设置路由
 	r := route.SetupRouter(
 		userHandler,
+		adminHandler,
 		orderHandler,
 	)
 	// 8. 创建 HTTP 服务器

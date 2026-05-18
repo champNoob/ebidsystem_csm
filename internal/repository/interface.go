@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"ebidsystem_csm/internal/model"
+	"ebidsystem_csm/internal/repository/dto"
 )
 
 type UserRepository interface {
@@ -11,6 +12,12 @@ type UserRepository interface {
 	ExistsByUsername(ctx context.Context, username string) (bool, error)
 	FindByUsername(ctx context.Context, username string) (*model.User, error)
 	Create(ctx context.Context, user *model.User) error
+}
+
+type AdminRepository interface {
+	GetGlobalStats(ctx context.Context) (totalOrders int64, totalTrades int64, totalVolume int64, totalTurnover float64, err error)
+	GetSymbolStats(ctx context.Context) ([]dto.SymbolStat, error)
+	GetUserRanking(ctx context.Context, limit int) ([]dto.UserRank, error)
 }
 
 type OrderRepository interface {

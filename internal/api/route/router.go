@@ -11,6 +11,7 @@ import (
 
 func SetupRouter(
 	userHandler *handler.UserHandler,
+	adminHandler *handler.AdminHandler,
 	orderHandler *handler.OrderHandler,
 ) *gin.Engine {
 	r := gin.New()
@@ -67,6 +68,8 @@ func SetupRouter(
 
 	admin.GET("/users/:id", userHandler.GetUser)
 	admin.POST("/users", userHandler.CreateUser)
+	admin.GET("/dashboard", adminHandler.GetDashboard)
+	admin.GET("/symbols", adminHandler.GetSymbolStats)
 
 	return r
 }
