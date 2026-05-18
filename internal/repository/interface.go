@@ -15,9 +15,19 @@ type UserRepository interface {
 }
 
 type AdminRepository interface {
-	GetGlobalStats(ctx context.Context) (totalOrders int64, totalTrades int64, totalVolume int64, totalTurnover float64, err error)
-	GetSymbolStats(ctx context.Context) ([]dto.SymbolStat, error)
+	GetGlobalStats(ctx context.Context) (
+		totalOrders int64,
+		totalTrades int64,
+		totalVolume int64,
+		totalTurnover float64,
+		err error,
+	)
 	GetUserRanking(ctx context.Context, limit int) ([]dto.UserRank, error)
+	GetUserRoleStats(ctx context.Context) ([]dto.UserRoleStat, error)
+	GetSymbolStats(ctx context.Context) ([]dto.SymbolStat, error)
+	GetOrderStatusStats(ctx context.Context) ([]dto.OrderStatusStat, error)
+	GetRecentTrades(ctx context.Context, limit int) ([]dto.RecentTrade, error)
+	GetTradeTimeline(ctx context.Context) ([]dto.TradeTimelinePoint, error)
 }
 
 type OrderRepository interface {
