@@ -14,6 +14,8 @@ type OrderService struct {
 	repo             repository.OrderRepository
 	matcher          *matching.Engine
 	matchEventLogger *logger.Logger
+	ctx              context.Context
+	cancelFunc       context.CancelFunc
 }
 
 func NewOrderService(repo repository.OrderRepository, matcher *matching.Engine) *OrderService {
@@ -26,14 +28,20 @@ func NewOrderService(repo repository.OrderRepository, matcher *matching.Engine) 
 	if err != nil {
 		matchEventLogger = nil //日志初始化失败不应阻止订单服务创建
 	}
+	ctx, cancel := context.WithCancel(context.Background())
 	return &OrderService{
 		repo:             repo,
 		matcher:          matcher,
 		matchEventLogger: matchEventLogger,
+		ctx:              ctx,
+		cancelFunc:       cancel,
 	}
 }
 
 func (s *OrderService) Close() {
+	if s.cancelFunc != nil {
+		s.cancelFunc()
+	}
 	if s.matchEventLogger != nil {
 		s.matchEventLogger.Close()
 	}
@@ -195,22 +203,38 @@ func (s *OrderService) CancelOrder(
 // 启动撮合事件监听器：
 func (s *OrderService) StartMatchEventListener() {
 	go func() {
-		ctx := context.Background()
 		for {
 			select {
-			case ev := <-s.matcher.Events():
-				// log.Print("matching event catched") //--
-				if err := s.handleMatchEvent(ctx, ev); err != nil {
-					s.matchEventLogger.Log(fmt.Sprintf(
-						"[MATCH_EVENT_ERROR] eventID=%s symbol=%s buyID=%d sellID=%d err=%v",
-						ev.EventID,
-						ev.Symbol,
-						ev.BuyOrderID,
-						ev.SellOrderID,
-						err,
-					))
+			case ev, ok := <-s.matcher.Events():
+				if !ok {
+					s.matchEventLogger.Log("[MATCH_EVENT_LISTENER_STOP] event channel closed")
+					return
 				}
-			case <-ctx.Done():
+				// log.Print("matching event catched") //--
+				if err := s.handleMatchEvent(s.ctx, ev); err != nil {
+					if be, ok := err.(*BusinessError); ok {
+						s.matchEventLogger.Log(fmt.Sprintf(
+							"[MATCH_EVENT_ERROR] eventID=%s symbol=%s buyID=%d sellID=%d code=%s msg=%s",
+							ev.EventID,
+							ev.Symbol,
+							ev.BuyOrderID,
+							ev.SellOrderID,
+							be.Code,
+							be.Message,
+						))
+					} else {
+						s.matchEventLogger.Log(fmt.Sprintf(
+							"[MATCH_EVENT_ERROR] eventID=%s symbol=%s buyID=%d sellID=%d err=%v",
+							ev.EventID,
+							ev.Symbol,
+							ev.BuyOrderID,
+							ev.SellOrderID,
+							err,
+						))
+					}
+				}
+			case <-s.ctx.Done():
+				s.matchEventLogger.Log("[MATCH_EVENT_LISTENER_STOP] context canceled")
 				return
 			}
 		}
@@ -225,7 +249,7 @@ func (s *OrderService) handleMatchEvent(
 
 	return s.repo.WithTx(ctx, func(tx *sql.Tx) error {
 		// 0. 幂等门闸
-		ok, err := s.repo.InsertMatchEventTx(ctx, tx, ev.EventID)
+		ok, err := s.repo.InsertMatchEventTx(ctx, tx, ev.EventID, ev.Symbol, ev.BuyOrderID, ev.SellOrderID, ev.Quantity, ev.Price)
 		if err != nil {
 			return err
 		}
@@ -234,14 +258,14 @@ func (s *OrderService) handleMatchEvent(
 		}
 		// 1. 买单
 		if err := s.repo.FillOrderTx(
-			ctx, tx, ev.BuyOrderID, ev.Quantity,
+			ctx, tx, ev.Symbol, ev.BuyOrderID, ev.Quantity,
 		); err != nil {
 			return err
 		}
 
 		// 2. 卖单
 		if err := s.repo.FillOrderTx(
-			ctx, tx, ev.SellOrderID, ev.Quantity,
+			ctx, tx, ev.Symbol, ev.SellOrderID, ev.Quantity,
 		); err != nil {
 			return err
 		}

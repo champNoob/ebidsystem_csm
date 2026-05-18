@@ -11,6 +11,7 @@ import (
 
 func SetupRouter(
 	userHandler *handler.UserHandler,
+	adminHandler *handler.AdminHandler,
 	orderHandler *handler.OrderHandler,
 ) *gin.Engine {
 	r := gin.New()
@@ -54,7 +55,7 @@ func SetupRouter(
 	)
 	api.POST(
 		"/orders/:id/cancel",
-		auth.RequireRole("client", "seller", "trader", "admin"),
+		auth.RequireRole("client", "seller", "trader", "admin"), //# -admin
 		orderHandler.CancelOrder,
 	)
 
@@ -65,8 +66,42 @@ func SetupRouter(
 		auth.RequireRole("admin"),
 	)
 
-	admin.GET("/users/:id", userHandler.GetUser)
-	admin.POST("/users", userHandler.CreateUser)
+	// 用户管理：
+	adminUsers := admin.Group("/users")
+	{
+		adminUsers.GET("/:id", userHandler.GetUser)
+		adminUsers.POST("", userHandler.CreateUser)
+		// 后续实现：
+		// adminUsers.GET("", userHandler.ListUsers)
+		// adminUsers.PUT("/:id/role", userHandler.UpdateUserRole)
+		// adminUsers.POST("/:id/disable", userHandler.DisableUser)
+		// adminUsers.GET("/:id/orders", orderHandler.AdminListUserOrders)
+	}
+	// 订单管理：
+	/*
+		adminOrders := admin.Group("/orders")
+		{
+			// 后续实现：
+			// adminOrders.GET("", orderHandler.AdminListOrders)
+		}
+	*/
+	// 交易管理：
+	adminTrades := admin.Group("/trades")
+	{
+		// 后续实现：
+		// adminTrades.GET("", adminHandler.GetRecentTrades)
+		adminTrades.GET("/recent", adminHandler.GetRecentTrades)
+	}
+	// 看板：
+	dashboard := admin.Group("/dashboard")
+	{
+		dashboard.GET("", adminHandler.GetDashboard)
+		dashboard.GET("/symbols", adminHandler.GetSymbolStats)
+		dashboard.GET("/order-status", adminHandler.GetOrderStatusStats)
+		dashboard.GET("/user-roles", adminHandler.GetUserRoleStats)
+		dashboard.GET("/user-ranking", adminHandler.GetUserRanking)
+		dashboard.GET("/trades/timeline", adminHandler.GetTradeTimeline)
+	}
 
 	return r
 }
