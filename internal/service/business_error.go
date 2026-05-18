@@ -129,4 +129,17 @@ var (
 		Code:    "ORDER_INVALID_TYPE",
 		Message: "无效的订单类型",
 	}
+	// 撮合 / 成交事件侧：
+	ErrMatchEventInvalid = &BusinessError{
+		Code:    "MATCH_EVENT_INVALID",
+		Message: "撮合事件不合法",
+	}
+	ErrOrderNotFillable = &BusinessError{
+		Code:    "ORDER_NOT_FILLABLE",
+		Message: "订单当前状态不可成交",
+	}
+	ErrOrderSymbolMismatch = &BusinessError{
+		Code:    "ORDER_SYMBOL_MISMATCH",
+		Message: "订单证券代码不匹配",
+	}
 )
