@@ -4,7 +4,6 @@ import (
 	"context"
 	"ebidsystem_csm/internal/pkg/logger"
 	"fmt"
-	"log"
 	"sync"
 )
 
@@ -37,8 +36,7 @@ func NewEngine() *Engine {
 		false,
 	)
 	if err != nil {
-		log.Printf("创建引擎日志失败: %v", err)
-		panic(err)
+		panic(fmt.Errorf("撮合引擎：创建订单提交日志失败: %w", err))
 	}
 	// 创建撮合事件日志实例：
 	eventLogger, err := logger.NewLogger(
@@ -48,8 +46,7 @@ func NewEngine() *Engine {
 		false,
 	)
 	if err != nil {
-		log.Printf("创建引擎日志失败: %v", err)
-		panic(err)
+		panic(fmt.Errorf("撮合引擎：创建撮合事件日志失败: %w", err))
 	}
 	// 创建订单簿撮合日志实例：
 	obMatchLogger, err := logger.NewLogger(
@@ -59,8 +56,7 @@ func NewEngine() *Engine {
 		false,
 	)
 	if err != nil {
-		log.Printf("创建引擎日志失败: %v", err)
-		panic(err)
+		panic(fmt.Errorf("撮合引擎：创建订单簿撮合日志失败: %w", err))
 	}
 
 	return &Engine{
@@ -84,7 +80,7 @@ func (e *Engine) Start() {
 		for {
 			select {
 			case <-e.ctx.Done():
-				log.Printf("[MATCHING_ENGINE_STOP]")
+				e.submitLogger.Log("[MATCHING_ENGINE_STOP]")
 				return
 
 			case order, ok := <-e.orderCh:

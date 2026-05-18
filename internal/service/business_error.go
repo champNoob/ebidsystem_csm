@@ -38,7 +38,7 @@ var (
 		Code:    "AUTH_INVALID_TOKEN_CLAIM",
 		Message: "token claim不合法",
 	}
-	ErrRoleNotFount = &BusinessError{
+	ErrRoleNotFound = &BusinessError{
 		Code:    "AUTH_ROLE_NOT_FOUND",
 		Message: "角色不存在",
 	}
@@ -78,6 +78,10 @@ var (
 	ErrPasswordTooShort = &BusinessError{
 		Code:    "USER_PASSWORD_TOO_SHORT",
 		Message: "密码长度不足 8 位",
+	}
+	ErrPasswordTooLong = &BusinessError{
+		Code:    "USER_PASSWORD_TOO_LONG",
+		Message: "密码长度超过 50 位",
 	}
 
 	// 订单侧：

@@ -4,7 +4,6 @@ import (
 	"context"
 	"ebidsystem_csm/internal/pkg/logger"
 	"fmt"
-	"log"
 	"sync"
 	"time"
 )
@@ -62,7 +61,7 @@ func (sm *SymbolMatcher) Start() {
 		for {
 			select {
 			case <-sm.ctx.Done():
-				log.Printf("[SYMBOL_MATCHER_STOP] symbol=%s", sm.symbol)
+				sm.eventLogger.Log(fmt.Sprintf("[SYMBOL_MATCHER_STOP] symbol=%s", sm.symbol))
 				return
 
 			case orderID, ok := <-sm.removeCh: //优先响应撤单
@@ -91,7 +90,11 @@ func (sm *SymbolMatcher) Start() {
 }
 
 func (sm *SymbolMatcher) Stop() {
-	log.Printf("[SYMBOL_MATCHER_STOP] symbol=%s Dropped Order Num: %d", sm.symbol, droppedOrderNum)
+	sm.eventLogger.Log(fmt.Sprintf(
+		"[SYMBOL_MATCHER_STOP] symbol=%s droppedOrderNum=%d",
+		sm.symbol,
+		droppedOrderNum,
+	))
 	sm.cancel()
 	close(sm.orderCh)
 	close(sm.removeCh)

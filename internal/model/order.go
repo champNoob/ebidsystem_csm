@@ -14,4 +14,6 @@ type Order struct {
 	FilledQuantity int64       `json:"filled_quantity"` // 已成交数量
 	Status         OrderStatus `json:"status"`          // pending（默认） / canceled / filled / partial
 	CreatedAt      time.Time   `json:"created_at"`
+	UpdatedAt      time.Time   `json:"updated_at"`
+	DeletedAt      *time.Time  `json:"deleted_at,omitempty"`
 }

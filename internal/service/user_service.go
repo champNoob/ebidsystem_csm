@@ -34,11 +34,13 @@ func (s *UserService) CreateUser(
 	// 1. 密码长度校验：
 	if len(input.Password) < 8 {
 		return ErrPasswordTooShort
+	} else if len(input.Password) > 50 {
+		return ErrPasswordTooLong
 	}
 	// 2. 角色合法性校验：
 	switch input.Role {
-	case "client", "seller", "trader", "admin":
-	default:
+	case "client", "seller", "trader":
+	default: //sales和admin不允许通过普通注册创建
 		return ErrInvalidUserRole
 	}
 
