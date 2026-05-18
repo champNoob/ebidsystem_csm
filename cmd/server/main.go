@@ -44,7 +44,6 @@ func main() {
 
 	// 5. 初始化服务层（service）
 	orderService := service.NewOrderService(orderRepo, engine)
-	defer orderService.Close()
 	userService := service.NewUserService(userRepo)
 	adminService := service.NewAdminService(adminRepo)
 	orderService.StartMatchEventListener() //启动撮合事件监听器
@@ -77,16 +76,19 @@ func main() {
 	<-quit
 	log.Println("Shutting down server...")
 
-	// 10. 关闭服务器
+	// 10. 关闭撮合引擎（停止产生新事件）
+	engine.Stop()
+
+	// 11. 关闭订单服务（停止事件监听器）
+	orderService.Close()
+
+	// 12. 关闭 HTTP 服务器
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Printf("Server Shutdown Failed:%+v", err)
 	}
-
-	// 11. 关闭撮合引擎
-	engine.Stop()
 
 	log.Println("Server exited properly")
 

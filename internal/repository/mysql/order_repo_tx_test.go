@@ -102,7 +102,7 @@ func cleanTables(t *testing.T, db *sql.DB) {
 	require.NoError(t, err)
 }
 
-func TestHandleMatchEvent_TransactionalRollback(t *testing.T) {
+func TestFillOrderTx_TransactionalRollback(t *testing.T) {
 	db := setupTestDB(t)
 	repo := NewOrderRepo(db)
 	ctx := context.Background()
@@ -118,10 +118,10 @@ func TestHandleMatchEvent_TransactionalRollback(t *testing.T) {
 
 	err = repo.WithTx(ctx, func(tx *sql.Tx) error {
 		// 买单成功（filled_quantity 增加 10）：
-		err := repo.FillOrderTx(ctx, tx, 1, 10)
+		err := repo.FillOrderTx(ctx, tx, "AAPL", 1, 10)
 		require.NoError(t, err)
 		// 卖单不存在 → 失败（事务回滚，买单的 filled_quantity 不会增加）：
-		return repo.FillOrderTx(ctx, tx, 999, 10)
+		return repo.FillOrderTx(ctx, tx, "AAPL", 999, 10)
 	})
 
 	require.Error(t, err)
@@ -161,7 +161,7 @@ func TestHandleMatchEvent_Idempotent(t *testing.T) {
 
 	apply := func() error {
 		return repo.WithTx(ctx, func(tx *sql.Tx) error {
-			ok, err := repo.TryInsertMatchEventTx(ctx, tx, eventID)
+			ok, err := repo.InsertMatchEventTx(ctx, tx, eventID, "AAPL", 1, 2, 10, 100)
 			if err != nil {
 				return err
 			}
@@ -169,10 +169,10 @@ func TestHandleMatchEvent_Idempotent(t *testing.T) {
 				return nil //已处理过，直接返回
 			}
 
-			if err := repo.FillOrderTx(ctx, tx, 1, 10); err != nil {
+			if err := repo.FillOrderTx(ctx, tx, "AAPL", 1, 10); err != nil {
 				return err
 			}
-			if err := repo.FillOrderTx(ctx, tx, 2, 10); err != nil {
+			if err := repo.FillOrderTx(ctx, tx, "AAPL", 2, 10); err != nil {
 				return err
 			}
 

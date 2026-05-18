@@ -4,8 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"ebidsystem_csm/internal/model"
+	"ebidsystem_csm/internal/repository"
 	"ebidsystem_csm/internal/service"
-	"fmt"
 	"log"
 	"strings"
 )
@@ -14,7 +14,7 @@ type OrderRepo struct {
 	db *sql.DB
 }
 
-func NewOrderRepo(db *sql.DB) *OrderRepo {
+func NewOrderRepo(db *sql.DB) repository.OrderRepository {
 	return &OrderRepo{db: db}
 }
 
@@ -190,141 +190,164 @@ func (r *OrderRepo) UpdateStatus(ctx context.Context, id int64, status string) e
 	return err
 }
 
-func (r *OrderRepo) FillOrder(
-	ctx context.Context,
-	orderID uint64,
-	filledQty int64,
-) error {
-	log.Printf( //x
-		"[FILL_ORDER] orderID=%d filledQty=%d",
-		orderID, filledQty,
-	)
-	// 先查询订单当前状态和数量，用于更精确的错误信息
-	var currentStatus string
-	var filledQuantity, quantity int64
-	err := r.db.QueryRowContext(ctx,
-		"SELECT status, filled_quantity, quantity FROM orders WHERE id = ?",
-		orderID,
-	).Scan(&currentStatus, &filledQuantity, &quantity)
-	if err == sql.ErrNoRows {
-		return service.ErrOrderNotFound
-	}
-	if err != nil {
-		return err
-	}
-	// 添加详细日志
-	log.Printf(
-		"[FILL_ORDER_DETAIL] orderID=%d, currentStatus=%s, filledQuantity=%d, quantity=%d, filledQty=%d, newTotal=%d",
-		orderID, currentStatus, filledQuantity, quantity, filledQty, filledQuantity+filledQty,
-	)
-	// 检查订单状态
-	if currentStatus == "cancelled" || currentStatus == "filled" {
-		return fmt.Errorf("order %d is already %s", orderID, currentStatus)
-	}
-	// 检查是否会超额填充
-	if filledQuantity+filledQty > quantity {
-		return service.ErrOrderOverFilled
-	}
-
-	newFilled := filledQuantity + filledQty
-	var newStatus string
-	if newFilled >= quantity {
-		newStatus = string(model.OrderStatusFilled)
-	} else {
-		newStatus = string(model.OrderStatusPartial)
-	}
-	res, err := r.db.ExecContext(
-		ctx,
-		`UPDATE orders
-		SET filled_quantity = ?, status = ?, updated_at = NOW()
-		WHERE id = ? AND status IN ('pending', 'partial')`,
-		newFilled,
-		newStatus,
-		orderID,
-	)
-
-	if err != nil {
-		return err
-	}
-
-	rows, err := res.RowsAffected()
-	if err != nil {
-		log.Printf("[FILL_ORDER_ERROR] RowsAffected error: %v", err)
-		return err
-	}
-	log.Printf("[FILL_ORDER_RESULT] RowsAffected: %d", rows)
-	if rows == 0 {
-		// 再查询一次看看状态是否变了
-		var afterStatus string
-		var afterFilledQuantity int64
-		r.db.QueryRowContext(ctx,
-			"SELECT status, filled_quantity FROM orders WHERE id = ?",
-			orderID,
-		).Scan(&afterStatus, &afterFilledQuantity)
-		log.Printf("[FILL_ORDER_AFTER] orderID=%d, status=%s, filled_quantity=%d",
-			orderID, afterStatus, afterFilledQuantity)
-		return service.ErrOrderUpdateFailed
-	}
-	// 查询更新后的状态
-	var finalStatus string
-	var finalFilledQuantity int64
-	r.db.QueryRowContext(ctx,
-		"SELECT status, filled_quantity FROM orders WHERE id = ?",
-		orderID,
-	).Scan(&finalStatus, &finalFilledQuantity)
-	log.Printf("[FILL_ORDER_FINAL] orderID=%d, status=%s, filled_quantity=%d",
-		orderID, finalStatus, finalFilledQuantity)
-	return nil
-}
-
 func (r *OrderRepo) FillOrderTx(
 	ctx context.Context,
 	tx *sql.Tx,
+	symbol string,
 	orderID uint64,
-	filledQty int64,
+	matchQty int64,
 ) error {
+	var currentSymbol string
+	var status string
+	var filledQuantity int64
+	var quantity int64
+
+	err := tx.QueryRowContext(
+		ctx,
+		`
+		SELECT symbol, status, filled_quantity, quantity
+		FROM orders
+		WHERE id = ?
+		FOR UPDATE
+		`,
+		orderID,
+	).Scan(&currentSymbol, &status, &filledQuantity, &quantity)
+
+	if err == sql.ErrNoRows {
+		log.Printf(
+			"[FILL_ORDER_TX_NOT_FOUND] orderID=%d symbol=%s matchQty=%d",
+			orderID,
+			symbol,
+			matchQty,
+		)
+		return service.ErrOrderNotFound
+	}
+	if err != nil {
+		log.Printf(
+			"[FILL_ORDER_TX_SELECT_ERROR] orderID=%d symbol=%s err=%v",
+			orderID,
+			symbol,
+			err,
+		)
+		return err
+	}
+
+	if currentSymbol != symbol {
+		log.Printf(
+			"[FILL_ORDER_TX_SYMBOL_MISMATCH] orderID=%d dbSymbol=%s eventSymbol=%s status=%s filled=%d quantity=%d matchQty=%d",
+			orderID,
+			currentSymbol,
+			symbol,
+			status,
+			filledQuantity,
+			quantity,
+			matchQty,
+		)
+		return service.ErrOrderSymbolMismatch
+	}
+
+	if status != string(model.OrderStatusPending) &&
+		status != string(model.OrderStatusPartial) {
+		log.Printf(
+			"[FILL_ORDER_TX_STATUS_NOT_FILLABLE] orderID=%d symbol=%s status=%s filled=%d quantity=%d matchQty=%d",
+			orderID,
+			symbol,
+			status,
+			filledQuantity,
+			quantity,
+			matchQty,
+		)
+		return service.ErrOrderNotFillable
+	}
+
+	if matchQty <= 0 {
+		log.Printf(
+			"[FILL_ORDER_TX_INVALID_QTY] orderID=%d symbol=%s status=%s filled=%d quantity=%d matchQty=%d",
+			orderID,
+			symbol,
+			status,
+			filledQuantity,
+			quantity,
+			matchQty,
+		)
+		return service.ErrMatchEventInvalid
+	}
+
+	newFilled := filledQuantity + matchQty
+	if newFilled > quantity {
+		log.Printf(
+			"[FILL_ORDER_TX_OVER_FILLED] orderID=%d symbol=%s status=%s filled=%d quantity=%d matchQty=%d newFilled=%d",
+			orderID,
+			symbol,
+			status,
+			filledQuantity,
+			quantity,
+			matchQty,
+			newFilled,
+		)
+		return service.ErrOrderOverFilled
+	}
+
+	newStatus := string(model.OrderStatusPartial)
+	if newFilled == quantity {
+		newStatus = string(model.OrderStatusFilled)
+	}
+
 	res, err := tx.ExecContext(
 		ctx,
 		`
 		UPDATE orders
 		SET
-			filled_quantity = filled_quantity + ?,
-			status = CASE
-				WHEN filled_quantity + ? >= quantity THEN 'filled'
-				ELSE 'partial'
-			END,
+			filled_quantity = ?,
+			status = ?,
 			updated_at = NOW()
 		WHERE id = ?
-		  AND status IN ('pending', 'partial')
-		  AND filled_quantity + ? <= quantity
 		`,
-		filledQty,
-		filledQty,
+		newFilled,
+		newStatus,
 		orderID,
-		filledQty,
 	)
 	if err != nil {
+		log.Printf(
+			"[FILL_ORDER_TX_UPDATE_ERROR] orderID=%d symbol=%s oldFilled=%d newFilled=%d quantity=%d oldStatus=%s newStatus=%s err=%v",
+			orderID,
+			symbol,
+			filledQuantity,
+			newFilled,
+			quantity,
+			status,
+			newStatus,
+			err,
+		)
 		return err
 	}
 
-	rows, _ := res.RowsAffected()
+	rows, err := res.RowsAffected()
+	if err != nil {
+		log.Printf(
+			"[FILL_ORDER_TX_ROWS_AFFECTED_ERROR] orderID=%d symbol=%s err=%v",
+			orderID,
+			symbol,
+			err,
+		)
+		return err
+	}
+
 	if rows == 0 {
+		log.Printf(
+			"[FILL_ORDER_TX_NO_ROWS_AFFECTED] orderID=%d symbol=%s oldFilled=%d newFilled=%d quantity=%d oldStatus=%s newStatus=%s",
+			orderID,
+			symbol,
+			filledQuantity,
+			newFilled,
+			quantity,
+			status,
+			newStatus,
+		)
 		return service.ErrOrderUpdateFailed
 	}
 
 	return nil
-}
-
-func (r *OrderRepo) CreateTrade(ctx context.Context, trade *model.Trade) error {
-	_, err := r.db.ExecContext(
-		ctx,
-		`INSERT INTO trades (buy_order_id, sell_order_id, price, quantity) VALUES (?, ?, ?, ?)`,
-		trade.BuyOrderID,
-		trade.SellOrderID,
-		trade.Price,
-		trade.Quantity,
-	)
-	return err
 }
 
 func (r *OrderRepo) CreateTradeTx(
@@ -335,7 +358,7 @@ func (r *OrderRepo) CreateTradeTx(
 	_, err := tx.ExecContext(
 		ctx,
 		`
-		INSERT INTO trades (event_id,symbol, buy_order_id, sell_order_id, price, quantity)
+		INSERT INTO trades (event_id, symbol, buy_order_id, sell_order_id, price, quantity)
 		VALUES (?, ?, ?, ?, ?, ?)
 		`,
 		trade.EventID,
@@ -350,6 +373,7 @@ func (r *OrderRepo) CreateTradeTx(
 			// 幂等命中：该撮合事件已处理
 			return nil
 		}
+		// log.Println("order_repo CreateTradeTx error:", err)//
 		return err
 	}
 	return nil
