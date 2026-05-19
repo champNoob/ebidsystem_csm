@@ -70,9 +70,9 @@ func SetupRouter(
 	adminUsers := admin.Group("/users")
 	{
 		adminUsers.GET("/:id", userHandler.GetUser)
-		adminUsers.POST("", userHandler.CreateUser)
+		adminUsers.POST("/create", userHandler.CreateUser)
 		// 后续实现：
-		// adminUsers.GET("", userHandler.ListUsers)
+		// adminUsers.GET("all", userHandler.ListUsers)
 		// adminUsers.PUT("/:id/role", userHandler.UpdateUserRole)
 		// adminUsers.POST("/:id/disable", userHandler.DisableUser)
 		// adminUsers.GET("/:id/orders", orderHandler.AdminListUserOrders)

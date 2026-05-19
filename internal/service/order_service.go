@@ -282,3 +282,65 @@ func (s *OrderService) handleMatchEvent(
 		return s.repo.CreateTradeTx(ctx, tx, trade)
 	})
 }
+
+// 引擎重启恢复订单：
+func (s *OrderService) RecoverActiveOrders(ctx context.Context) error {
+	orders, err := s.repo.FindActiveOrdersForRecovery(ctx)
+	if err != nil {
+		return err
+	}
+
+	recovered := 0
+	skipped := 0
+
+	for _, o := range orders {
+		if o.ID <= 0 || o.UserID <= 0 { //跳过无效订单
+			skipped++
+			continue
+		}
+
+		if o.Price == nil { //跳过价格为空的订单
+			skipped++
+			continue
+		}
+
+		remaining := o.Quantity - o.FilledQuantity
+		if remaining <= 0 {
+			skipped++
+			continue
+		}
+
+		matchingOrder := &matching.Order{
+			ID:        uint64(o.ID),
+			UserID:    uint64(o.UserID),
+			Symbol:    o.Symbol,
+			Type:      matching.OrderType(o.Type),
+			Side:      matching.OrderSide(o.Side),
+			Price:     *o.Price,
+			Quantity:  o.Quantity,
+			Remaining: remaining,
+		}
+
+		if err := s.matcher.Submit(matchingOrder); err != nil {
+			s.matchEventLogger.Log(fmt.Sprintf(
+				"[RECOVER_ORDER_ERROR] orderID=%d symbol=%s side=%s remaining=%d err=%v",
+				o.ID,
+				o.Symbol,
+				o.Side,
+				remaining,
+				err,
+			))
+			return err
+		}
+
+		recovered++
+	}
+
+	s.matchEventLogger.Log(fmt.Sprintf(
+		"[RECOVER_ORDERS_DONE] recovered=%d skipped=%d",
+		recovered,
+		skipped,
+	))
+
+	return nil
+}

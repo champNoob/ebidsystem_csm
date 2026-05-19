@@ -410,3 +410,45 @@ func (r *OrderRepo) CancelOrder(
 
 	return nil
 }
+
+func (r *OrderRepo) FindActiveOrdersForRecovery(ctx context.Context) ([]*model.Order, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, user_id, symbol, type, side, price, quantity, filled_quantity, status, created_at, updated_at
+		FROM orders
+		WHERE status IN ('pending', 'partial')
+		ORDER BY created_at ASC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var orders []*model.Order
+	for rows.Next() {
+		var o model.Order
+		var price float64
+		if err := rows.Scan(
+			&o.ID,
+			&o.UserID,
+			&o.Symbol,
+			&o.Type,
+			&o.Side,
+			&o.Price,
+			&o.Quantity,
+			&o.FilledQuantity,
+			&o.Status,
+			&o.CreatedAt,
+			&o.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		o.Price = &price
+		orders = append(orders, &o)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return orders, nil
+}

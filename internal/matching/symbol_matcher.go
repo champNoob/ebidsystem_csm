@@ -125,6 +125,7 @@ func (sm *SymbolMatcher) matchAndEmit() {
 
 	for _, ev := range events {
 		ev.EventID = sm.nextEventID() //撮合引擎直接生成事件ID
+		ev.Symbol = sm.symbol
 
 		// 输出日志：
 		message := fmt.Sprintf("[SM_MATCH] symbol=%s buyID=%d sellID=%d matchQty=%d price=%.2f",
