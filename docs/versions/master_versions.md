@@ -107,7 +107,7 @@
 - 仓储层`FindActiveOrdersForRecovery`方法
 - 服务层`RecoverActiveOrders`方法并在main.go中调用
 
-### 统一错误封装2.0
+#### 统一错误封装2.0
 
 - 创建`internal/apperror`目录
 - 将服务层错误定义移到 `catalog.go`
