@@ -1,10 +1,8 @@
-package handler
+package apperror
 
 import (
-	"net/http"
-
 	"ebidsystem_csm/internal/api/dto/response"
-	"ebidsystem_csm/internal/service"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
@@ -50,7 +48,7 @@ var errorCodeToHTTPStatus = map[string]int{
 
 func respondError(c *gin.Context, err error) {
 	// 业务错误
-	if be, ok := err.(*service.BusinessError); ok {
+	if be, ok := err.(*BusinessError); ok {
 		status, exists := errorCodeToHTTPStatus[be.Code]
 		if !exists {
 			status = http.StatusInternalServerError
@@ -68,4 +66,12 @@ func respondError(c *gin.Context, err error) {
 		Code:    "INTERNAL_ERROR",
 		Message: "内部错误，请稍后重试",
 	})
+}
+
+func HTTPStatusOf(err error) int {
+	code := CodeOf(err)
+	if status, ok := errorCodeToHTTPStatus[code]; ok {
+		return status
+	}
+	return http.StatusInternalServerError
 }

@@ -1,15 +1,4 @@
-package service
-
-// BusinessError 业务错误结构体
-type BusinessError struct {
-	Code    string
-	Message string
-}
-
-// Error 实现 error 接口
-func (e *BusinessError) Error() string {
-	return e.Message
-}
+package apperror
 
 var (
 	// 通用：

@@ -1,7 +1,7 @@
 package auth
 
 import (
-	"ebidsystem_csm/internal/service"
+	"ebidsystem_csm/internal/apperror"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -20,8 +20,8 @@ func RequireRole(allowedRoles ...string) gin.HandlerFunc {
 			c.AbortWithStatusJSON(
 				http.StatusForbidden,
 				gin.H{
-					"code":    service.ErrRoleNotFound.Code,
-					"message": service.ErrRoleNotFound.Message,
+					"code":    apperror.ErrRoleNotFound.Code,
+					"message": apperror.ErrRoleNotFound.Message,
 				},
 			)
 			return
@@ -32,8 +32,8 @@ func RequireRole(allowedRoles ...string) gin.HandlerFunc {
 			c.AbortWithStatusJSON(
 				http.StatusForbidden,
 				gin.H{
-					"code":    service.ErrInvalidUserRole.Code,
-					"message": service.ErrInvalidUserRole.Message,
+					"code":    apperror.ErrInvalidUserRole.Code,
+					"message": apperror.ErrInvalidUserRole.Message,
 				},
 			)
 			return
@@ -43,8 +43,8 @@ func RequireRole(allowedRoles ...string) gin.HandlerFunc {
 			c.AbortWithStatusJSON(
 				http.StatusForbidden,
 				gin.H{
-					"code":    service.ErrPermissionDenied.Code,
-					"message": service.ErrPermissionDenied.Message,
+					"code":    apperror.ErrPermissionDenied.Code,
+					"message": apperror.ErrPermissionDenied.Message,
 				},
 			)
 			return

@@ -100,10 +100,19 @@
 
 - Dashboard 总览、Symbol 统计、订单状态分布、用户角色分布、用户交易排行、最近成交记录、成交时间趋势
 
-### `v0.4.2` 重启订单恢复
+### `v0.4.2` 重启订单恢复 + 错误封装优化
+
+#### 重启订单恢复机制
 
 - 仓储层`FindActiveOrdersForRecovery`方法
 - 服务层`RecoverActiveOrders`方法并在main.go中调用
+
+### 统一错误封装2.0
+
+- 创建`internal/apperror`目录
+- 将服务层错误定义移到 `catalog.go`
+- 将控制层的 HTTP 状态码映射移到 `http_status.go`
+- 更改相关文件的依赖包从`service`到`apperror`
 
 ### `v0.4.3` 订单状态机
 
