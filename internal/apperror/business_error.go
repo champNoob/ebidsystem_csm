@@ -9,16 +9,17 @@ type BusinessError struct {
 	Cause   error
 }
 
-// 实现 Error 接口：
+// 实现 Error 错误接口：
 func (e *BusinessError) Error() string {
 	return e.Message
 }
 
-// Unwrap 实现 Unwrap 接口：
+// 实现 Unwrap 接口：
 func (e *BusinessError) Unwrap() error {
 	return e.Cause
 }
 
+// 返回一个新的 BusinessError 实例：
 func (e *BusinessError) WithCause(cause error) *BusinessError {
 	return &BusinessError{
 		Code:    e.Code,
@@ -27,6 +28,7 @@ func (e *BusinessError) WithCause(cause error) *BusinessError {
 	}
 }
 
+// 类型断言：
 func AsBusinessError(err error) (*BusinessError, bool) {
 	var be *BusinessError
 	if errors.As(err, &be) {
@@ -35,6 +37,7 @@ func AsBusinessError(err error) (*BusinessError, bool) {
 	return nil, false
 }
 
+// 提取错误码：
 func CodeOf(err error) string {
 	if be, ok := AsBusinessError(err); ok {
 		return be.Code
@@ -42,6 +45,7 @@ func CodeOf(err error) string {
 	return ErrInternal.Code
 }
 
+// 中提取错误消息：
 func MessageOf(err error) string {
 	if be, ok := AsBusinessError(err); ok {
 		return be.Message

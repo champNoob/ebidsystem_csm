@@ -11,7 +11,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// JWTAuthMiddleware：登录态校验
+// JWTAuthMiddleware 登录态校验：
 func JWTAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 

@@ -1,10 +1,7 @@
 package apperror
 
 import (
-	"ebidsystem_csm/internal/api/dto/response"
 	"net/http"
-
-	"github.com/gin-gonic/gin"
 )
 
 // 错误码 → HTTP 状态码映射表：
@@ -44,28 +41,6 @@ var errorCodeToHTTPStatus = map[string]int{
 	"ORDER_SYMBOL_MISMATCH": http.StatusInternalServerError, // 500
 	"MATCH_EVENT_INVALID":   http.StatusInternalServerError, // 500
 	"ORDER_OVER_FILLED":     http.StatusConflict,            // 409
-}
-
-func respondError(c *gin.Context, err error) {
-	// 业务错误
-	if be, ok := err.(*BusinessError); ok {
-		status, exists := errorCodeToHTTPStatus[be.Code]
-		if !exists {
-			status = http.StatusInternalServerError
-		}
-
-		c.JSON(status, response.ErrorResponse{
-			Code:    be.Code,
-			Message: be.Message,
-		})
-		return
-	}
-
-	// 未知错误（兜底）
-	c.JSON(http.StatusInternalServerError, response.ErrorResponse{
-		Code:    "INTERNAL_ERROR",
-		Message: "内部错误，请稍后重试",
-	})
 }
 
 func HTTPStatusOf(err error) int {
