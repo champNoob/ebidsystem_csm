@@ -3,6 +3,7 @@ package handler
 import (
 	"ebidsystem_csm/internal/api/dto/request"
 	"ebidsystem_csm/internal/api/dto/response"
+	"ebidsystem_csm/internal/apperror"
 	"ebidsystem_csm/internal/service"
 	"log"
 	"strconv"
@@ -21,7 +22,7 @@ func NewUserHandler(service *service.UserService) *UserHandler {
 func (h *UserHandler) GetUser(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		respondError(c, service.ErrInvalidUserID)
+		respondError(c, apperror.ErrInvalidUserID)
 		return
 	}
 
@@ -39,14 +40,14 @@ func (h *UserHandler) GetMe(c *gin.Context) {
 	// 1. 从 JWT Middleware 写入的 context 中取 userID
 	userIDAny, exists := c.Get("userID")
 	if !exists {
-		respondError(c, service.ErrUserUnauthorized)
+		respondError(c, apperror.ErrUserUnauthorized)
 		return
 	}
 
 	userID, ok := userIDAny.(int64)
 	if !ok {
 		log.Printf("Invalid userID type: %T", userIDAny)
-		respondError(c, service.ErrInternal)
+		respondError(c, apperror.ErrInternal)
 		return
 	}
 
@@ -71,7 +72,7 @@ func (h *UserHandler) GetMe(c *gin.Context) {
 func (h *UserHandler) CreateUser(c *gin.Context) {
 	var req request.CreateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondError(c, service.ErrInvalidInput)
+		respondError(c, apperror.ErrInvalidInput)
 		return
 	}
 
@@ -93,7 +94,7 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 func (h *UserHandler) Login(c *gin.Context) {
 	var req request.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondError(c, service.ErrInvalidInput)
+		respondError(c, apperror.ErrInvalidInput)
 		return
 	}
 

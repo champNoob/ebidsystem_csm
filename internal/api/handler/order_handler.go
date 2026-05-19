@@ -2,6 +2,7 @@ package handler
 
 import (
 	"ebidsystem_csm/internal/api/dto/request"
+	"ebidsystem_csm/internal/apperror"
 	"ebidsystem_csm/internal/model"
 	"ebidsystem_csm/internal/service"
 	"strconv"
@@ -20,7 +21,7 @@ func NewOrderHandler(s *service.OrderService) *OrderHandler {
 func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	var req request.CreateOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondError(c, service.ErrInvalidInput)
+		respondError(c, apperror.ErrInvalidInput)
 		return
 	}
 
@@ -28,7 +29,7 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	roleStr := c.GetString("role")
 	role, err := model.ParseUserRole(roleStr)
 	if err != nil {
-		respondError(c, service.ErrInvalidUserRole)
+		respondError(c, apperror.ErrInvalidUserRole)
 		return
 	}
 
@@ -53,7 +54,7 @@ func (h *OrderHandler) ListOrders(c *gin.Context) {
 	// 1. 从 JWT 中取 userID：
 	userIDAny, exists := c.Get("userID")
 	if !exists {
-		respondError(c, service.ErrUserUnauthorized)
+		respondError(c, apperror.ErrUserUnauthorized)
 		return
 	}
 	userID := userIDAny.(int64)
@@ -61,7 +62,7 @@ func (h *OrderHandler) ListOrders(c *gin.Context) {
 	// 2. 解析 query 参数：
 	var req request.ListOrdersRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		respondError(c, service.ErrInvalidOrderQuery)
+		respondError(c, apperror.ErrInvalidOrderQuery)
 		return
 	}
 	// 3. 调用 service：
@@ -82,7 +83,7 @@ func (h *OrderHandler) ListOrders(c *gin.Context) {
 func (h *OrderHandler) CancelOrder(c *gin.Context) {
 	orderID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		respondError(c, service.ErrInvalidOrderID)
+		respondError(c, apperror.ErrInvalidOrderID)
 		return
 	}
 

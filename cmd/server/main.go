@@ -46,7 +46,10 @@ func main() {
 	orderService := service.NewOrderService(orderRepo, engine)
 	userService := service.NewUserService(userRepo)
 	adminService := service.NewAdminService(adminRepo)
-	orderService.StartMatchEventListener() //启动撮合事件监听器
+	orderService.StartMatchEventListener()                                         //先启动撮合事件监听器
+	if err := orderService.RecoverActiveOrders(context.Background()); err != nil { //再恢复活跃订单
+		log.Fatalf("recover active orders failed: %v", err)
+	}
 
 	// 6. 初始化处理器（Handler）
 	userHandler := handler.NewUserHandler(userService)

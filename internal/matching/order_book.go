@@ -14,12 +14,15 @@ func NewOrderBook() *OrderBook {
 }
 
 func (ob *OrderBook) AddOrder(o *Order) {
+	if o.Remaining <= 0 {
+		o.Remaining = o.Quantity
+	}
+
 	if o.Side == OrderSideBuy {
 		ob.buyOrders = insertBuy(ob.buyOrders, o)
 	} else {
 		ob.sellOrders = insertSell(ob.sellOrders, o)
 	}
-	o.Remaining = o.Quantity
 }
 
 func (ob *OrderBook) Remove(orderID uint64) {

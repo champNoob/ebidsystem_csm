@@ -37,11 +37,13 @@ type OrderRepository interface {
 	FindByID(ctx context.Context, id int64) (*model.Order, error)
 	UpdateStatus(ctx context.Context, id int64, status string) error
 	CancelOrder(ctx context.Context, orderID uint64) error
-	//撮合事件事务化
+	//撮合事件事务化：
 	WithTx(ctx context.Context, fn TxFunc) error
 	FillOrderTx(ctx context.Context, tx *sql.Tx, symbol string, orderID uint64, qty int64) error
 	CreateTradeTx(ctx context.Context, tx *sql.Tx, trade *model.Trade) error
 	InsertMatchEventTx(ctx context.Context, tx *sql.Tx, eventID string, symbol string, buyOrderID uint64, sellOrderID uint64, quantity int64, price float64) (bool, error)
+	// 重启恢复：
+	FindActiveOrdersForRecovery(ctx context.Context) ([]*model.Order, error)
 }
 
 type TxFunc func(tx *sql.Tx) error
