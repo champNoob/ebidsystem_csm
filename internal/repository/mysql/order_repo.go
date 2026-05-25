@@ -413,7 +413,7 @@ func (r *OrderRepo) CancelOrder(
 
 func (r *OrderRepo) FindActiveOrdersForRecovery(ctx context.Context) ([]*model.Order, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT id, user_id, symbol, type, side, price, quantity, filled_quantity, status, created_at, updated_at
+		SELECT id, user_id, symbol, type, side, price, quantity, filled_quantity, status, created_at
 		FROM orders
 		WHERE status IN ('pending', 'partial')
 		ORDER BY created_at ASC
@@ -438,7 +438,6 @@ func (r *OrderRepo) FindActiveOrdersForRecovery(ctx context.Context) ([]*model.O
 			&o.FilledQuantity,
 			&o.Status,
 			&o.CreatedAt,
-			&o.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
