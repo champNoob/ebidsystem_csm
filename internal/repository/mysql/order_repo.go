@@ -391,7 +391,7 @@ func (r *OrderRepo) CancelOrder(
 			status = 'cancelled',
 			updated_at = NOW()
 		WHERE id = ?
-		  AND status IN ('pending', 'partial');
+			AND status IN ('pending', 'partial');
 		`,
 		orderID,
 	)

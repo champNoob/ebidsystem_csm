@@ -67,11 +67,36 @@ func (r *AdminRepo) GetUserRoleStats(ctx context.Context) ([]dto.UserRoleStat, e
 
 func (r *AdminRepo) GetUserRanking(ctx context.Context, limit int) ([]dto.UserRank, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT o.user_id, SUM(t.quantity) as volume
-		FROM trades t
-		JOIN orders o ON t.buy_order_id = o.id
-		GROUP BY o.user_id
-		ORDER BY volume DESC
+		SELECT 
+			u.id,
+			u.username,
+			u.role,
+			IFNULL(SUM(x.buy_volume), 0) AS buy_volume,
+			IFNULL(SUM(x.sell_volume), 0) AS sell_volume,
+			IFNULL(SUM(x.buy_volume + x.sell_volume), 0) AS total_volume
+		FROM users u
+		JOIN (
+			SELECT 
+				ob.user_id AS user_id,
+				SUM(t.quantity) AS buy_volume,
+				0 AS sell_volume
+			FROM trades t
+			JOIN orders ob ON t.buy_order_id = ob.id
+			GROUP BY ob.user_id
+
+			UNION ALL
+
+			SELECT 
+				os.user_id AS user_id,
+				0 AS buy_volume,
+				SUM(t.quantity) AS sell_volume
+			FROM trades t
+			JOIN orders os ON t.sell_order_id = os.id
+			GROUP BY os.user_id
+		) x ON u.id = x.user_id
+		WHERE u.is_deleted = 0
+		GROUP BY u.id, u.username, u.role
+		ORDER BY total_volume DESC
 		LIMIT ?
 	`, limit)
 	if err != nil {
@@ -82,10 +107,21 @@ func (r *AdminRepo) GetUserRanking(ctx context.Context, limit int) ([]dto.UserRa
 	var res []dto.UserRank
 	for rows.Next() {
 		var u dto.UserRank
-		if err := rows.Scan(&u.UserID, &u.Volume); err != nil {
+		if err := rows.Scan(
+			&u.UserID,
+			&u.Username,
+			&u.Role,
+			&u.BuyVolume,
+			&u.SellVolume,
+			&u.TotalVolume,
+		); err != nil {
 			return nil, err
 		}
 		res = append(res, u)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return res, nil
@@ -100,6 +136,7 @@ func (r *AdminRepo) GetSymbolStats(ctx context.Context) ([]dto.SymbolStat, error
 			SUM(price * quantity) as turnover
 		FROM trades
 		GROUP BY symbol
+		ORDER BY volume DESC
 	`)
 	if err != nil {
 		return nil, err
@@ -128,6 +165,7 @@ func (r *AdminRepo) GetOrderStatusStats(ctx context.Context) ([]dto.OrderStatusS
 		SELECT status, COUNT(*)
 		FROM orders
 		GROUP BY status
+		ORDER BY COUNT(*) DESC
 	`)
 	if err != nil {
 		return nil, err

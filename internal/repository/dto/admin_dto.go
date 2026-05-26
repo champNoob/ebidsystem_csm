@@ -36,7 +36,10 @@ type TradeTimelinePoint struct {
 }
 
 type UserRank struct {
-	UserID int64  `json:"user_id"`
-	Role   string `json:"role"`
-	Volume int64  `json:"volume"`
+	UserID      int64  `json:"user_id"`
+	Username    string `json:"username"`
+	Role        string `json:"role"`
+	BuyVolume   int64  `json:"buy_volume"`
+	SellVolume  int64  `json:"sell_volume"`
+	TotalVolume int64  `json:"total_volume"`
 }
