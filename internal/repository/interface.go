@@ -28,6 +28,8 @@ type AdminRepository interface {
 	GetOrderStatusStats(ctx context.Context) ([]dto.OrderStatusStat, error)
 	GetRecentTrades(ctx context.Context, limit int) ([]dto.RecentTrade, error)
 	GetTradeTimeline(ctx context.Context) ([]dto.TradeTimelinePoint, error)
+	// 订单管理：
+	GetAdminOrders(ctx context.Context, query dto.AdminOrderQuery) (*dto.AdminOrderPage, error)
 }
 
 type OrderRepository interface {

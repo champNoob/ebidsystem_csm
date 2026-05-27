@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"ebidsystem_csm/internal/repository"
 	"ebidsystem_csm/internal/repository/dto"
+	"fmt"
+	"strings"
 )
 
 type AdminRepo struct {
@@ -75,7 +77,7 @@ func (r *AdminRepo) GetUserRanking(ctx context.Context, limit int) ([]dto.UserRa
 			IFNULL(SUM(x.sell_volume), 0) AS sell_volume,
 			IFNULL(SUM(x.buy_volume + x.sell_volume), 0) AS total_volume
 		FROM users u
-		JOIN (
+		LEFT JOIN (
 			SELECT 
 				ob.user_id AS user_id,
 				SUM(t.quantity) AS buy_volume,
@@ -130,10 +132,10 @@ func (r *AdminRepo) GetUserRanking(ctx context.Context, limit int) ([]dto.UserRa
 func (r *AdminRepo) GetSymbolStats(ctx context.Context) ([]dto.SymbolStat, error) {
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT 
-			symbol,
+			IFNULL(symbol, 'UNKNOWN') AS symbol,
 			COUNT(*) as trades,
-			SUM(quantity) as volume,
-			SUM(price * quantity) as turnover
+			FNULL(SUM(quantity), 0) as volume,
+			IFNULL(SUM(price * quantity), 0) as turnover
 		FROM trades
 		GROUP BY symbol
 		ORDER BY volume DESC
@@ -185,9 +187,17 @@ func (r *AdminRepo) GetOrderStatusStats(ctx context.Context) ([]dto.OrderStatusS
 
 func (r *AdminRepo) GetRecentTrades(ctx context.Context, limit int) ([]dto.RecentTrade, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT id, event_id, buy_order_id, sell_order_id, price, quantity, created_at
+		SELECT
+			id,
+			event_id,
+			IFNULL(symbol, ''),
+			buy_order_id,
+			sell_order_id,
+			price,
+			quantity,
+			DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s')
 		FROM trades
-		ORDER BY created_at DESC
+		ORDER BY created_at DESC, id DESC
 		LIMIT ?
 	`, limit)
 	if err != nil {
@@ -201,6 +211,7 @@ func (r *AdminRepo) GetRecentTrades(ctx context.Context, limit int) ([]dto.Recen
 		if err := rows.Scan(
 			&t.ID,
 			&t.EventID,
+			&t.Symbol,
 			&t.BuyOrderID,
 			&t.SellOrderID,
 			&t.Price,
@@ -239,4 +250,118 @@ func (r *AdminRepo) GetTradeTimeline(ctx context.Context) ([]dto.TradeTimelinePo
 		res = append(res, p)
 	}
 	return res, nil
+}
+
+func (r *AdminRepo) GetAdminOrders(
+	ctx context.Context,
+	query dto.AdminOrderQuery,
+) (*dto.AdminOrderPage, error) {
+	whereParts := []string{"1=1"}
+	args := make([]interface{}, 0)
+
+	if query.UserID != nil {
+		whereParts = append(whereParts, "user_id = ?")
+		args = append(args, *query.UserID)
+	}
+
+	if query.Symbol != "" {
+		whereParts = append(whereParts, "symbol = ?")
+		args = append(args, query.Symbol)
+	}
+
+	if query.Status != "" && query.Status != "all" {
+		whereParts = append(whereParts, "status = ?")
+		args = append(args, query.Status)
+	}
+
+	if query.Side != "" && query.Side != "all" {
+		whereParts = append(whereParts, "side = ?")
+		args = append(args, query.Side)
+	}
+
+	if query.Type != "" && query.Type != "all" {
+		whereParts = append(whereParts, "`type` = ?")
+		args = append(args, query.Type)
+	}
+
+	whereSQL := strings.Join(whereParts, " AND ")
+
+	var total int64
+	countSQL := fmt.Sprintf(`
+		SELECT COUNT(*)
+		FROM orders
+		WHERE %s
+	`, whereSQL)
+
+	if err := r.db.QueryRowContext(ctx, countSQL, args...).Scan(&total); err != nil {
+		return nil, err
+	}
+
+	offset := (query.Page - 1) * query.PageSize
+
+	listArgs := append([]interface{}{}, args...)
+	listArgs = append(listArgs, query.PageSize, offset)
+
+	listSQL := fmt.Sprintf(`
+		SELECT
+			id,
+			user_id,
+			symbol,
+			`+"`type`"+`,
+			side,
+			price,
+			quantity,
+			filled_quantity,
+			status,
+			DATE_FORMAT(created_at, '%%Y-%%m-%%d %%H:%%i:%%s')
+		FROM orders
+		WHERE %s
+		ORDER BY created_at DESC, id DESC
+		LIMIT ? OFFSET ?
+	`, whereSQL)
+
+	rows, err := r.db.QueryContext(ctx, listSQL, listArgs...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := make([]dto.AdminOrderItem, 0)
+
+	for rows.Next() {
+		var item dto.AdminOrderItem
+		var price sql.NullFloat64
+
+		if err := rows.Scan(
+			&item.ID,
+			&item.UserID,
+			&item.Symbol,
+			&item.Type,
+			&item.Side,
+			&price,
+			&item.Quantity,
+			&item.FilledQuantity,
+			&item.Status,
+			&item.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+
+		if price.Valid {
+			item.Price = &price.Float64
+		}
+
+		items = append(items, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return &dto.AdminOrderPage{
+		Items:    items,
+		Page:     query.Page,
+		PageSize: query.PageSize,
+		Total:    total,
+	}, nil
 }
