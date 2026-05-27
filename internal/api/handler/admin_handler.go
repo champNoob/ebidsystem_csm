@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"ebidsystem_csm/internal/api/dto/request"
+	"ebidsystem_csm/internal/apperror"
 	"ebidsystem_csm/internal/service"
 	"net/http"
 	"strconv"
@@ -31,16 +33,17 @@ func (h *AdminHandler) GetDashboard(c *gin.Context) {
 func (h *AdminHandler) GetUserRoleStats(c *gin.Context) {
 	res, err := h.service.GetUserRoleStats(c.Request.Context())
 	if err != nil {
-		respondError(c, service.ErrInternal)
+		respondError(c, apperror.ErrInternal)
 		return
 	}
 	c.JSON(200, res)
 }
 
 func (h *AdminHandler) GetUserRanking(c *gin.Context) {
-	res, err := h.service.GetUserRanking(c.Request.Context())
+	limit := parseIntDefault(c.Query("limit"), 10)
+	res, err := h.service.GetUserRanking(c.Request.Context(), limit)
 	if err != nil {
-		respondError(c, service.ErrInternal)
+		respondError(c, apperror.ErrInternal)
 		return
 	}
 	c.JSON(200, res)
@@ -50,7 +53,7 @@ func (h *AdminHandler) ListUserOrders(c *gin.Context) {
 	// userID := c.Param("id")
 	// res, err := h.service.ListUserOrders(c.Request.Context(), userID)
 	// if err != nil {
-	// 	respondError(c, service.ErrInternal)
+	// 	respondError(c, apperror.ErrInternal)
 	// 	return
 	// }
 	// c.JSON(200, res)
@@ -69,7 +72,7 @@ func (h *AdminHandler) GetSymbolStats(c *gin.Context) {
 func (h *AdminHandler) GetOrderStatusStats(c *gin.Context) {
 	res, err := h.service.GetOrderStatusStats(c.Request.Context())
 	if err != nil {
-		respondError(c, service.ErrInternal)
+		respondError(c, apperror.ErrInternal)
 		return
 	}
 	c.JSON(200, res)
@@ -85,7 +88,7 @@ func (h *AdminHandler) GetRecentTrades(c *gin.Context) {
 
 	res, err := h.service.GetRecentTrades(c.Request.Context(), limit)
 	if err != nil {
-		respondError(c, service.ErrInternal)
+		respondError(c, apperror.ErrInternal)
 		return
 	}
 	c.JSON(200, res)
@@ -94,8 +97,35 @@ func (h *AdminHandler) GetRecentTrades(c *gin.Context) {
 func (h *AdminHandler) GetTradeTimeline(c *gin.Context) {
 	res, err := h.service.GetTradeTimeline(c.Request.Context())
 	if err != nil {
-		respondError(c, service.ErrInternal)
+		respondError(c, apperror.ErrInternal)
 		return
 	}
+	c.JSON(200, res)
+}
+
+func (h *AdminHandler) AdminListOrders(c *gin.Context) {
+	var req request.AdminListOrdersRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		respondError(c, apperror.ErrInvalidOrderQuery)
+		return
+	}
+
+	res, err := h.service.GetAdminOrders(
+		c.Request.Context(),
+		service.AdminListOrdersInput{
+			UserID:   req.UserID,
+			Symbol:   req.Symbol,
+			Status:   req.Status,
+			Side:     req.Side,
+			Type:     req.Type,
+			Page:     req.Page,
+			PageSize: req.PageSize,
+		},
+	)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+
 	c.JSON(200, res)
 }

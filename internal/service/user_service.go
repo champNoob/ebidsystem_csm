@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"ebidsystem_csm/internal/apperror"
 	"ebidsystem_csm/internal/model"
 	"ebidsystem_csm/internal/pkg/security"
 	"ebidsystem_csm/internal/repository"
@@ -33,15 +34,15 @@ func (s *UserService) CreateUser(
 
 	// 1. 密码长度校验：
 	if len(input.Password) < 8 {
-		return ErrPasswordTooShort
+		return apperror.ErrPasswordTooShort
 	} else if len(input.Password) > 50 {
-		return ErrPasswordTooLong
+		return apperror.ErrPasswordTooLong
 	}
 	// 2. 角色合法性校验：
 	switch input.Role {
 	case "client", "seller", "trader":
 	default: //sales和admin不允许通过普通注册创建
-		return ErrInvalidUserRole
+		return apperror.ErrInvalidUserRole
 	}
 
 	// 3. 密码处理（业务规则）：
@@ -61,9 +62,9 @@ func (s *UserService) CreateUser(
 	if err := s.repo.Create(ctx, user); err != nil {
 		// MySQL 错误 1062 → 唯一键冲突
 		if isMySQLDuplicateEntry(err) {
-			return ErrUserAlreadyExists
+			return apperror.ErrUserAlreadyExists
 		}
-		return ErrInternal
+		return apperror.ErrInternal
 	}
 	// 5. 创建审计日志
 	// 6. 触发领域事件
@@ -84,20 +85,20 @@ type LoginInput struct {
 func (s *UserService) Login(ctx context.Context, input LoginInput) (string, error) {
 	user, err := s.repo.FindByUsername(ctx, input.Username)
 	if err != nil {
-		return "", ErrInternal
+		return "", apperror.ErrInternal
 	}
 	if user == nil || user.IsDeleted {
-		return "", ErrUserNotFound
+		return "", apperror.ErrUserNotFound
 	}
 
 	if !security.VerifyPassword(input.Password, user.PasswordHash) {
-		return "", ErrInvalidPassword
+		return "", apperror.ErrInvalidPassword
 	}
 
 	// 生成 JWT（下一步）
 	token, err := security.GenerateJWT(user.ID, user.Role)
 	if err != nil {
-		return "", ErrInternal
+		return "", apperror.ErrInternal
 	}
 
 	return token, nil

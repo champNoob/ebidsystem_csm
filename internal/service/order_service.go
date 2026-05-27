@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"database/sql"
+	"ebidsystem_csm/internal/apperror"
 	"ebidsystem_csm/internal/matching"
 	"ebidsystem_csm/internal/model"
 	"ebidsystem_csm/internal/pkg/logger"
@@ -66,14 +67,14 @@ func (s *OrderService) CreateOrder(
 	switch orderType {
 	case model.OrderTypeLimit:
 		if price == nil {
-			return ErrOrderLimitWithoutPrice
+			return apperror.ErrOrderLimitWithoutPrice
 		}
 	case model.OrderTypeMarket:
 		if price != nil {
-			return ErrOrderMarketWithPrice
+			return apperror.ErrOrderMarketWithPrice
 		}
 	default:
-		return ErrOrderInvalidType
+		return apperror.ErrOrderInvalidType
 	}
 
 	order := &model.Order{
@@ -131,7 +132,7 @@ func (s *OrderService) ListOrders(
 				model.OrderStatusPartial,
 			})
 		}
-		return nil, ErrPermissionDenied
+		return nil, apperror.ErrPermissionDenied
 
 	case "sales":
 		return s.repo.FindByUserID(ctx, userID, statuses) //#未来需要区分userID和tgtID
@@ -140,7 +141,7 @@ func (s *OrderService) ListOrders(
 		return s.repo.FindByUserID(ctx, userID, statuses)
 
 	default:
-		return nil, ErrPermissionDenied
+		return nil, apperror.ErrPermissionDenied
 	}
 }
 
@@ -159,7 +160,7 @@ func parseOrderQueryStatus(s string) ([]model.OrderStatus, error) {
 			model.OrderStatusCanceled,
 		}, nil
 	default:
-		return nil, ErrInvalidOrderStatusQuery
+		return nil, apperror.ErrInvalidOrderStatusQuery
 	}
 }
 
@@ -173,17 +174,17 @@ func (s *OrderService) CancelOrder(
 	// 0. 查询订单：
 	order, err := s.repo.FindByID(ctx, orderID)
 	if err != nil {
-		return ErrOrderNotFound
+		return apperror.ErrOrderNotFound
 	}
 
 	// 1. 权限校验：
 	if role != "admin" && order.UserID != userID {
-		return ErrPermissionDenied
+		return apperror.ErrPermissionDenied
 	}
 
 	// 2. 状态校验：
 	if !order.Status.CanCancel() { // 订单强类型
-		return ErrOrderNotCancellable
+		return apperror.ErrOrderNotCancellable
 	}
 
 	// 3. 执行撤单（原子）：
@@ -210,9 +211,8 @@ func (s *OrderService) StartMatchEventListener() {
 					s.matchEventLogger.Log("[MATCH_EVENT_LISTENER_STOP] event channel closed")
 					return
 				}
-				// log.Print("matching event catched") //--
 				if err := s.handleMatchEvent(s.ctx, ev); err != nil {
-					if be, ok := err.(*BusinessError); ok {
+					if be, ok := err.(*apperror.BusinessError); ok {
 						s.matchEventLogger.Log(fmt.Sprintf(
 							"[MATCH_EVENT_ERROR] eventID=%s symbol=%s buyID=%d sellID=%d code=%s msg=%s",
 							ev.EventID,
@@ -281,4 +281,86 @@ func (s *OrderService) handleMatchEvent(
 		}
 		return s.repo.CreateTradeTx(ctx, tx, trade)
 	})
+}
+
+// 引擎重启恢复订单：
+func (s *OrderService) RecoverActiveOrders(ctx context.Context) error {
+	// 检查脏订单：
+	dirtyOrders, err := s.repo.FindDirtyOrdersForRecovery(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, o := range dirtyOrders {
+		s.matchEventLogger.Log(fmt.Sprintf(
+			"[RECOVERY_DIRTY_ORDER] id=%d symbol=%s status=%s quantity=%d filled=%d reason=%s",
+			o.ID,
+			o.Symbol,
+			o.Status,
+			o.Quantity,
+			o.FilledQuantity,
+			o.Reason,
+		))
+	}
+
+	// 恢复活跃订单：
+	orders, err := s.repo.FindActiveOrdersForRecovery(ctx)
+	if err != nil {
+		return err
+	}
+
+	recovered := 0
+	skipped := 0
+
+	for _, o := range orders {
+		if o.ID <= 0 || o.UserID <= 0 { //跳过无效订单
+			skipped++
+			continue
+		}
+
+		if o.Price == nil { //跳过价格为空的订单
+			skipped++
+			continue
+		}
+
+		remaining := o.Quantity - o.FilledQuantity
+		if remaining <= 0 {
+			skipped++
+			continue
+		}
+
+		matchingOrder := &matching.Order{
+			ID:        uint64(o.ID),
+			UserID:    uint64(o.UserID),
+			Symbol:    o.Symbol,
+			Type:      matching.OrderType(o.Type),
+			Side:      matching.OrderSide(o.Side),
+			Price:     *o.Price,
+			Quantity:  o.Quantity,
+			Remaining: remaining,
+		}
+
+		if err := s.matcher.Submit(matchingOrder); err != nil {
+			s.matchEventLogger.Log(fmt.Sprintf(
+				"[RECOVER_ORDER_ERROR] orderID=%d symbol=%s side=%s remaining=%d err=%v",
+				o.ID,
+				o.Symbol,
+				o.Side,
+				remaining,
+				err,
+			))
+			return err
+		}
+
+		recovered++
+	}
+
+	s.matchEventLogger.Log(fmt.Sprintf(
+		"[RECOVER_ORDERS_DONE] recovered=%d skipped=%d dirty=%d",
+		recovered,
+		skipped,
+		len(dirtyOrders),
+	))
+
+	return nil
 }

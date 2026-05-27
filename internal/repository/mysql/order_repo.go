@@ -3,9 +3,10 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"ebidsystem_csm/internal/apperror"
 	"ebidsystem_csm/internal/model"
 	"ebidsystem_csm/internal/repository"
-	"ebidsystem_csm/internal/service"
+	"ebidsystem_csm/internal/repository/dto"
 	"log"
 	"strings"
 )
@@ -220,7 +221,7 @@ func (r *OrderRepo) FillOrderTx(
 			symbol,
 			matchQty,
 		)
-		return service.ErrOrderNotFound
+		return apperror.ErrOrderNotFound
 	}
 	if err != nil {
 		log.Printf(
@@ -243,7 +244,7 @@ func (r *OrderRepo) FillOrderTx(
 			quantity,
 			matchQty,
 		)
-		return service.ErrOrderSymbolMismatch
+		return apperror.ErrOrderSymbolMismatch
 	}
 
 	if status != string(model.OrderStatusPending) &&
@@ -257,7 +258,7 @@ func (r *OrderRepo) FillOrderTx(
 			quantity,
 			matchQty,
 		)
-		return service.ErrOrderNotFillable
+		return apperror.ErrOrderNotFillable
 	}
 
 	if matchQty <= 0 {
@@ -270,7 +271,7 @@ func (r *OrderRepo) FillOrderTx(
 			quantity,
 			matchQty,
 		)
-		return service.ErrMatchEventInvalid
+		return apperror.ErrMatchEventInvalid
 	}
 
 	newFilled := filledQuantity + matchQty
@@ -285,7 +286,7 @@ func (r *OrderRepo) FillOrderTx(
 			matchQty,
 			newFilled,
 		)
-		return service.ErrOrderOverFilled
+		return apperror.ErrOrderOverFilled
 	}
 
 	newStatus := string(model.OrderStatusPartial)
@@ -344,7 +345,7 @@ func (r *OrderRepo) FillOrderTx(
 			status,
 			newStatus,
 		)
-		return service.ErrOrderUpdateFailed
+		return apperror.ErrOrderUpdateFailed
 	}
 
 	return nil
@@ -391,7 +392,7 @@ func (r *OrderRepo) CancelOrder(
 			status = 'cancelled',
 			updated_at = NOW()
 		WHERE id = ?
-		  AND status IN ('pending', 'partial');
+			AND status IN ('pending', 'partial');
 		`,
 		orderID,
 	)
@@ -405,8 +406,106 @@ func (r *OrderRepo) CancelOrder(
 	}
 
 	if rows == 0 {
-		return service.ErrOrderNotCancellable
+		return apperror.ErrOrderNotCancellable
 	}
 
 	return nil
+}
+
+/* 引擎重启恢复订单 */
+
+func (r *OrderRepo) FindActiveOrdersForRecovery(ctx context.Context) ([]*model.Order, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, user_id, symbol, type, side, price, quantity, filled_quantity, status, created_at
+		FROM orders
+		WHERE status IN ('pending', 'partial')
+		ORDER BY created_at ASC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var orders []*model.Order
+	for rows.Next() {
+		var o model.Order
+		var price float64
+		if err := rows.Scan(
+			&o.ID,
+			&o.UserID,
+			&o.Symbol,
+			&o.Type,
+			&o.Side,
+			&o.Price,
+			&o.Quantity,
+			&o.FilledQuantity,
+			&o.Status,
+			&o.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		o.Price = &price
+		orders = append(orders, &o)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return orders, nil
+}
+
+func (r *OrderRepo) FindDirtyOrdersForRecovery(
+	ctx context.Context,
+) ([]dto.RecoveryDirtyOrder, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT
+			id,
+			symbol,
+			status,
+			quantity,
+			filled_quantity,
+			CASE
+				WHEN filled_quantity > quantity THEN 'filled_quantity_gt_quantity'
+				WHEN status = 'filled' AND filled_quantity < quantity THEN 'filled_status_but_not_full'
+				WHEN status IN ('pending', 'partial') AND filled_quantity >= quantity THEN 'active_status_but_already_full'
+				WHEN filled_quantity < 0 THEN 'negative_filled_quantity'
+				ELSE 'unknown'
+			END AS reason
+		FROM orders
+		WHERE
+			filled_quantity > quantity
+			OR (status = 'filled' AND filled_quantity < quantity)
+			OR (status IN ('pending', 'partial') AND filled_quantity >= quantity)
+			OR filled_quantity < 0
+		ORDER BY id ASC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	res := make([]dto.RecoveryDirtyOrder, 0)
+
+	for rows.Next() {
+		var item dto.RecoveryDirtyOrder
+		if err := rows.Scan(
+			&item.ID,
+			&item.Symbol,
+			&item.Status,
+			&item.Quantity,
+			&item.FilledQuantity,
+			&item.Reason,
+		); err != nil {
+			return nil, err
+		}
+
+		res = append(res, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }

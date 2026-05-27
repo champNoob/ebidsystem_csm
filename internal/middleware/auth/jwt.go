@@ -4,14 +4,14 @@ import (
 	"net/http"
 	"strings"
 
+	"ebidsystem_csm/internal/apperror"
 	"ebidsystem_csm/internal/pkg/security"
-	"ebidsystem_csm/internal/service"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// JWTAuthMiddleware：登录态校验
+// JWTAuthMiddleware 登录态校验：
 func JWTAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 
@@ -21,8 +21,8 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 			c.AbortWithStatusJSON(
 				http.StatusUnauthorized,
 				gin.H{
-					"code":    service.ErrMissingAuthHeader.Code,
-					"message": service.ErrMissingAuthHeader.Message,
+					"code":    apperror.ErrMissingAuthHeader.Code,
+					"message": apperror.ErrMissingAuthHeader.Message,
 				},
 			)
 			return
@@ -34,8 +34,8 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 			c.AbortWithStatusJSON(
 				http.StatusUnauthorized,
 				gin.H{
-					"code":    service.ErrInvalidAuthHeader.Code,
-					"message": service.ErrInvalidAuthHeader.Message,
+					"code":    apperror.ErrInvalidAuthHeader.Code,
+					"message": apperror.ErrInvalidAuthHeader.Message,
 				},
 			)
 			return
@@ -56,8 +56,8 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 			c.AbortWithStatusJSON(
 				http.StatusUnauthorized,
 				gin.H{
-					"code":    service.ErrInvalidToken.Code,
-					"message": service.ErrInvalidToken.Message,
+					"code":    apperror.ErrInvalidToken.Code,
+					"message": apperror.ErrInvalidToken.Message,
 				},
 			)
 			return
@@ -68,8 +68,8 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 			c.AbortWithStatusJSON(
 				http.StatusUnauthorized,
 				gin.H{
-					"code":    service.ErrInvalidTokenClaims.Code,
-					"message": service.ErrInvalidTokenClaims.Message,
+					"code":    apperror.ErrInvalidTokenClaims.Code,
+					"message": apperror.ErrInvalidTokenClaims.Message,
 				},
 			)
 			return

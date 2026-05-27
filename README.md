@@ -46,12 +46,17 @@ ebidsystem_csm/
 │   │   ├── handler/                # 请求控制器（Controller）
 │   │   │   ├── admin_handler.go      # 管理员控制器
 │   │   │   ├── auth_errors.go        # 控制层内部错误
-│   │   │   ├── error_handler.go      # 错误控制器
+│   │   │   ├── error_handler.go      # 错误处理
 │   │   │   ├── order_handler.go      # 订单控制器
 │   │   │   └── user_handler.go       # 用户控制器
 │   │   └── route/                  # 路由定义
 │   │       ├── router.go             # 路由配置
 │   │       └── middleware.go         # 路由级中间件配置（暂未实现）
+│   │
+│   ├── apperror/                   # 全局错误定义
+│   │   ├── business_error.go         # 业务错误类型定义（服务层）
+|   |   ├── catalog.go                # 错误目录
+|   |   └── http_status.go            # HTTP状态码映射
 │   │
 │   ├── cache/                    # 缓存实现（需复杂缓存逻辑，暂未实现）
 │   │
@@ -62,8 +67,6 @@ ebidsystem_csm/
 │   │   └── loader.go               # 配置加载器
 │   │
 │   ├── constant/                 # 全局常量定义（暂未实现）
-│   │
-│   ├── errors/                   # 全局错误定义（暂未实现）
 │   │
 │   ├── matching/                 # 撮合引擎
 │   │   ├── engine_test.go          # 撮合引擎测试
@@ -140,7 +143,6 @@ ebidsystem_csm/
 │   │
 │   ├── service/                  # 业务层
 │   │   ├── admin_service.go        # 订单服务
-│   │   ├── business_error.go       # 服务层错误定义
 │   │   ├── order_service.go        # 订单服务
 │   │   ├── order_validation.go     # 订单校验
 │   │   └── user_service.go         # 用户服务
