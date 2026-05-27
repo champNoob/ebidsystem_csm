@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"ebidsystem_csm/internal/api/dto/request"
 	"ebidsystem_csm/internal/apperror"
 	"ebidsystem_csm/internal/service"
 	"net/http"
@@ -39,7 +40,8 @@ func (h *AdminHandler) GetUserRoleStats(c *gin.Context) {
 }
 
 func (h *AdminHandler) GetUserRanking(c *gin.Context) {
-	res, err := h.service.GetUserRanking(c.Request.Context())
+	limit := parseIntDefault(c.Query("limit"), 10)
+	res, err := h.service.GetUserRanking(c.Request.Context(), limit)
 	if err != nil {
 		respondError(c, apperror.ErrInternal)
 		return
@@ -98,5 +100,32 @@ func (h *AdminHandler) GetTradeTimeline(c *gin.Context) {
 		respondError(c, apperror.ErrInternal)
 		return
 	}
+	c.JSON(200, res)
+}
+
+func (h *AdminHandler) AdminListOrders(c *gin.Context) {
+	var req request.AdminListOrdersRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		respondError(c, apperror.ErrInvalidOrderQuery)
+		return
+	}
+
+	res, err := h.service.GetAdminOrders(
+		c.Request.Context(),
+		service.AdminListOrdersInput{
+			UserID:   req.UserID,
+			Symbol:   req.Symbol,
+			Status:   req.Status,
+			Side:     req.Side,
+			Type:     req.Type,
+			Page:     req.Page,
+			PageSize: req.PageSize,
+		},
+	)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+
 	c.JSON(200, res)
 }

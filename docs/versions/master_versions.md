@@ -96,7 +96,7 @@
 
 - admin 路由组（控制层-服务层-仓储层-DTO）、鉴权
 
-- 查看指定用户、创建用户、【查看全部订单】
+- 查看指定用户、创建用户、查看全部订单（加分页功能）
 
 - Dashboard 总览、Symbol 统计、订单状态分布、用户角色分布、用户交易排行、最近成交记录、成交时间趋势
 
@@ -105,6 +105,7 @@
 #### 重启订单恢复机制
 
 - 仓储层`FindActiveOrdersForRecovery`方法
+- 仓储层`FindDirtyOrdersForRecovery`方法
 - 服务层`RecoverActiveOrders`方法并在main.go中调用
 
 #### 统一错误封装2.0

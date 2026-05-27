@@ -211,7 +211,6 @@ func (s *OrderService) StartMatchEventListener() {
 					s.matchEventLogger.Log("[MATCH_EVENT_LISTENER_STOP] event channel closed")
 					return
 				}
-				// log.Print("matching event catched") //--
 				if err := s.handleMatchEvent(s.ctx, ev); err != nil {
 					if be, ok := err.(*apperror.BusinessError); ok {
 						s.matchEventLogger.Log(fmt.Sprintf(
@@ -286,6 +285,25 @@ func (s *OrderService) handleMatchEvent(
 
 // 引擎重启恢复订单：
 func (s *OrderService) RecoverActiveOrders(ctx context.Context) error {
+	// 检查脏订单：
+	dirtyOrders, err := s.repo.FindDirtyOrdersForRecovery(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, o := range dirtyOrders {
+		s.matchEventLogger.Log(fmt.Sprintf(
+			"[RECOVERY_DIRTY_ORDER] id=%d symbol=%s status=%s quantity=%d filled=%d reason=%s",
+			o.ID,
+			o.Symbol,
+			o.Status,
+			o.Quantity,
+			o.FilledQuantity,
+			o.Reason,
+		))
+	}
+
+	// 恢复活跃订单：
 	orders, err := s.repo.FindActiveOrdersForRecovery(ctx)
 	if err != nil {
 		return err
@@ -338,9 +356,10 @@ func (s *OrderService) RecoverActiveOrders(ctx context.Context) error {
 	}
 
 	s.matchEventLogger.Log(fmt.Sprintf(
-		"[RECOVER_ORDERS_DONE] recovered=%d skipped=%d",
+		"[RECOVER_ORDERS_DONE] recovered=%d skipped=%d dirty=%d",
 		recovered,
 		skipped,
+		len(dirtyOrders),
 	))
 
 	return nil

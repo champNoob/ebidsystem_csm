@@ -14,6 +14,16 @@ func NewAdminService(repo repository.AdminRepository) *AdminService {
 	return &AdminService{repo: repo}
 }
 
+type AdminListOrdersInput struct {
+	UserID   *int64
+	Symbol   string
+	Status   string
+	Side     string
+	Type     string
+	Page     int
+	PageSize int
+}
+
 func (s *AdminService) GetDashboard(ctx context.Context) (map[string]interface{}, error) {
 	totalOrders, totalTrades, totalVolume, totalTurnover, err :=
 		s.repo.GetGlobalStats(ctx)
@@ -41,7 +51,10 @@ func (s *AdminService) GetUserRoleStats(ctx context.Context) ([]dto.UserRoleStat
 	return s.repo.GetUserRoleStats(ctx)
 }
 
-func (s *AdminService) GetUserRanking(ctx context.Context) ([]dto.UserRank, error) {
+func (s *AdminService) GetUserRanking(ctx context.Context, limit int) ([]dto.UserRank, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 10
+	}
 	return s.repo.GetUserRanking(ctx, 10)
 }
 
@@ -54,4 +67,33 @@ func (s *AdminService) GetRecentTrades(ctx context.Context, limit int) ([]dto.Re
 
 func (s *AdminService) GetTradeTimeline(ctx context.Context) ([]dto.TradeTimelinePoint, error) {
 	return s.repo.GetTradeTimeline(ctx)
+}
+
+func (s *AdminService) GetAdminOrders(
+	ctx context.Context,
+	input AdminListOrdersInput,
+) (*dto.AdminOrderPage, error) {
+	if input.Page <= 0 {
+		input.Page = 1
+	}
+
+	if input.PageSize <= 0 {
+		input.PageSize = 20
+	}
+
+	if input.PageSize > 100 {
+		input.PageSize = 100
+	}
+
+	query := dto.AdminOrderQuery{
+		UserID:   input.UserID,
+		Symbol:   input.Symbol,
+		Status:   input.Status,
+		Side:     input.Side,
+		Type:     input.Type,
+		Page:     input.Page,
+		PageSize: input.PageSize,
+	}
+
+	return s.repo.GetAdminOrders(ctx, query)
 }

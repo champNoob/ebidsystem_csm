@@ -6,6 +6,7 @@ import (
 	"ebidsystem_csm/internal/apperror"
 	"ebidsystem_csm/internal/model"
 	"ebidsystem_csm/internal/repository"
+	"ebidsystem_csm/internal/repository/dto"
 	"log"
 	"strings"
 )
@@ -391,7 +392,7 @@ func (r *OrderRepo) CancelOrder(
 			status = 'cancelled',
 			updated_at = NOW()
 		WHERE id = ?
-		  AND status IN ('pending', 'partial');
+			AND status IN ('pending', 'partial');
 		`,
 		orderID,
 	)
@@ -411,9 +412,11 @@ func (r *OrderRepo) CancelOrder(
 	return nil
 }
 
+/* 引擎重启恢复订单 */
+
 func (r *OrderRepo) FindActiveOrdersForRecovery(ctx context.Context) ([]*model.Order, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT id, user_id, symbol, type, side, price, quantity, filled_quantity, status, created_at, updated_at
+		SELECT id, user_id, symbol, type, side, price, quantity, filled_quantity, status, created_at
 		FROM orders
 		WHERE status IN ('pending', 'partial')
 		ORDER BY created_at ASC
@@ -438,7 +441,6 @@ func (r *OrderRepo) FindActiveOrdersForRecovery(ctx context.Context) ([]*model.O
 			&o.FilledQuantity,
 			&o.Status,
 			&o.CreatedAt,
-			&o.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -451,4 +453,59 @@ func (r *OrderRepo) FindActiveOrdersForRecovery(ctx context.Context) ([]*model.O
 	}
 
 	return orders, nil
+}
+
+func (r *OrderRepo) FindDirtyOrdersForRecovery(
+	ctx context.Context,
+) ([]dto.RecoveryDirtyOrder, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT
+			id,
+			symbol,
+			status,
+			quantity,
+			filled_quantity,
+			CASE
+				WHEN filled_quantity > quantity THEN 'filled_quantity_gt_quantity'
+				WHEN status = 'filled' AND filled_quantity < quantity THEN 'filled_status_but_not_full'
+				WHEN status IN ('pending', 'partial') AND filled_quantity >= quantity THEN 'active_status_but_already_full'
+				WHEN filled_quantity < 0 THEN 'negative_filled_quantity'
+				ELSE 'unknown'
+			END AS reason
+		FROM orders
+		WHERE
+			filled_quantity > quantity
+			OR (status = 'filled' AND filled_quantity < quantity)
+			OR (status IN ('pending', 'partial') AND filled_quantity >= quantity)
+			OR filled_quantity < 0
+		ORDER BY id ASC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	res := make([]dto.RecoveryDirtyOrder, 0)
+
+	for rows.Next() {
+		var item dto.RecoveryDirtyOrder
+		if err := rows.Scan(
+			&item.ID,
+			&item.Symbol,
+			&item.Status,
+			&item.Quantity,
+			&item.FilledQuantity,
+			&item.Reason,
+		); err != nil {
+			return nil, err
+		}
+
+		res = append(res, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }

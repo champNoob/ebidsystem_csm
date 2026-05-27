@@ -36,7 +36,42 @@ type TradeTimelinePoint struct {
 }
 
 type UserRank struct {
-	UserID int64  `json:"user_id"`
-	Role   string `json:"role"`
-	Volume int64  `json:"volume"`
+	UserID      int64  `json:"user_id"`
+	Username    string `json:"username"`
+	Role        string `json:"role"`
+	BuyVolume   int64  `json:"buy_volume"`
+	SellVolume  int64  `json:"sell_volume"`
+	TotalVolume int64  `json:"total_volume"`
+}
+
+/* 订单管理 */
+
+type AdminOrderQuery struct {
+	UserID   *int64
+	Symbol   string
+	Status   string
+	Side     string
+	Type     string
+	Page     int
+	PageSize int
+}
+
+type AdminOrderItem struct {
+	ID             uint64   `json:"id"`
+	UserID         uint64   `json:"user_id"`
+	Symbol         string   `json:"symbol"`
+	Type           string   `json:"type"`
+	Side           string   `json:"side"`
+	Price          *float64 `json:"price"`
+	Quantity       int64    `json:"quantity"`
+	FilledQuantity int64    `json:"filled_quantity"`
+	Status         string   `json:"status"`
+	CreatedAt      string   `json:"created_at"`
+}
+
+type AdminOrderPage struct {
+	Items    []AdminOrderItem `json:"items"`
+	Page     int              `json:"page"`
+	PageSize int              `json:"page_size"`
+	Total    int64            `json:"total"`
 }

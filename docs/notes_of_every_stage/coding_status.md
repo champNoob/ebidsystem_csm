@@ -304,6 +304,7 @@ func (s OrderStatus) CanCancel() bool {
 ### 引擎重启恢复机制
 
 - 仓储层添加 `FindActiveOrdersForRecovery` 方法
+- 仓储层添加 `FindDirtyOrdersForRecovery` 方法
 - 服务层添加 `RecoverActiveOrders` 方法并在 main.go 中调用
 
 ### 统一错误封装2.0
