@@ -78,13 +78,10 @@ func SetupRouter(
 		// adminUsers.GET("/:id/orders", orderHandler.AdminListUserOrders)
 	}
 	// 订单管理：
-	/*
-		adminOrders := admin.Group("/orders")
-		{
-			// 后续实现：
-			// adminOrders.GET("", orderHandler.AdminListOrders)
-		}
-	*/
+	adminOrders := admin.Group("/orders")
+	{
+		adminOrders.GET("", adminHandler.AdminListOrders)
+	}
 	// 交易管理：
 	adminTrades := admin.Group("/trades")
 	{

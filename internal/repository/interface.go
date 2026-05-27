@@ -44,6 +44,7 @@ type OrderRepository interface {
 	InsertMatchEventTx(ctx context.Context, tx *sql.Tx, eventID string, symbol string, buyOrderID uint64, sellOrderID uint64, quantity int64, price float64) (bool, error)
 	// 重启恢复：
 	FindActiveOrdersForRecovery(ctx context.Context) ([]*model.Order, error)
+	FindDirtyOrdersForRecovery(ctx context.Context) ([]dto.RecoveryDirtyOrder, error)
 }
 
 type TxFunc func(tx *sql.Tx) error
