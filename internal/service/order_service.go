@@ -175,7 +175,7 @@ func (s *OrderService) CancelOrder(
 	// 0. 查询订单：
 	order, err := s.repo.FindByID(ctx, orderID)
 	if err != nil {
-		return apperror.ErrOrderNotFound
+		return err
 	}
 
 	// 1. 权限校验：
@@ -213,7 +213,7 @@ func (s *OrderService) StartMatchEventListener() {
 					return
 				}
 				if err := s.handleMatchEvent(s.ctx, ev); err != nil {
-					if be, ok := err.(*apperror.BusinessError); ok {
+					if be, ok := apperror.AsBusinessError(err); ok {
 						s.logMatchEvent(fmt.Sprintf(
 							"[MATCH_EVENT_ERROR] eventID=%s symbol=%s buyID=%d sellID=%d code=%s msg=%s",
 							ev.EventID,

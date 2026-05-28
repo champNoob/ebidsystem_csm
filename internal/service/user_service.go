@@ -47,7 +47,7 @@ func (s *UserService) CreateUser(
 	// 3. 密码处理（业务规则）：
 	hash, err := security.HashPassword(input.Password)
 	if err != nil {
-		return err
+		return apperror.ErrInternal
 	}
 	//
 	user := &model.User{
@@ -57,7 +57,7 @@ func (s *UserService) CreateUser(
 		IsDeleted:    false,
 	}
 
-	// 4. 用户名唯一性校验：
+	// 4. 调用仓储层：
 	if err := s.repo.Create(ctx, user); err != nil {
 		return apperror.ErrInternal
 	}

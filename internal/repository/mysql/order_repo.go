@@ -323,7 +323,7 @@ func (r *OrderRepo) FillOrderTx(
 			newStatus,
 			err,
 		)
-		return err
+		return wrapDBError(err)
 	}
 
 	rows, err := res.RowsAffected()
@@ -334,7 +334,7 @@ func (r *OrderRepo) FillOrderTx(
 			symbol,
 			err,
 		)
-		return err
+		return wrapDBError(err)
 	}
 
 	if rows == 0 {
