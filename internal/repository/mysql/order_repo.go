@@ -36,12 +36,12 @@ func (r *OrderRepo) Create(ctx context.Context, o *model.Order) (uint64, error) 
 		model.OrderStatusPending, // 使用定义好的常量
 	)
 	if err != nil {
-		return 0, err
+		return 0, wrapDBError(err)
 	}
 	// 获取新插入的 ID：
 	id, err := result.LastInsertId()
 	if err != nil {
-		return 0, err
+		return 0, wrapDBError(err)
 	}
 	return uint64(id), nil
 }
@@ -82,7 +82,7 @@ func (r *OrderRepo) FindByUserID(
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, err
+		return nil, wrapDBError(err)
 	}
 	defer rows.Close()
 
@@ -100,7 +100,7 @@ func (r *OrderRepo) FindByUserID(
 			&o.Status,
 			&o.CreatedAt,
 		); err != nil {
-			return nil, err
+			return nil, wrapDBError(err)
 		}
 		orders = append(orders, &o)
 	}
@@ -125,8 +125,8 @@ func (r *OrderRepo) FindAll(
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		log.Printf("%v", err)
-		return nil, err
+		// log.Printf("%v", err)//#
+		return nil, wrapDBError(err)
 	}
 	defer rows.Close()
 
@@ -144,7 +144,7 @@ func (r *OrderRepo) FindAll(
 			&o.Status,
 			&o.CreatedAt,
 		); err != nil {
-			return nil, err
+			return nil, wrapDBError(err)
 		}
 		orders = append(orders, &o)
 	}
@@ -159,7 +159,7 @@ func (r *OrderRepo) FindByID(
 	row := r.db.QueryRowContext(
 		ctx,
 		`SELECT id, user_id, symbol, side, price, quantity, filled_quantity, status, created_at
-		 FROM orders WHERE id = ?`,
+		FROM orders WHERE id = ?`,
 		id,
 	)
 
@@ -175,7 +175,10 @@ func (r *OrderRepo) FindByID(
 		&o.Status,
 		&o.CreatedAt,
 	); err != nil {
-		return nil, err
+		if err == sql.ErrNoRows {
+			return nil, apperror.ErrOrderNotFound
+		}
+		return nil, wrapDBError(err)
 	}
 
 	return &o, nil
@@ -188,7 +191,7 @@ func (r *OrderRepo) UpdateStatus(ctx context.Context, id int64, status string) e
 		status,
 		id,
 	)
-	return err
+	return wrapDBError(err)
 }
 
 func (r *OrderRepo) FillOrderTx(
@@ -230,7 +233,7 @@ func (r *OrderRepo) FillOrderTx(
 			symbol,
 			err,
 		)
-		return err
+		return wrapDBError(err)
 	}
 
 	if currentSymbol != symbol {
@@ -320,7 +323,7 @@ func (r *OrderRepo) FillOrderTx(
 			newStatus,
 			err,
 		)
-		return err
+		return wrapDBError(err)
 	}
 
 	rows, err := res.RowsAffected()
@@ -331,7 +334,7 @@ func (r *OrderRepo) FillOrderTx(
 			symbol,
 			err,
 		)
-		return err
+		return wrapDBError(err)
 	}
 
 	if rows == 0 {
@@ -370,12 +373,11 @@ func (r *OrderRepo) CreateTradeTx(
 		trade.Quantity,
 	)
 	if err != nil {
-		if isMySQLDuplicateEntry(err) {
-			// 幂等命中：该撮合事件已处理
+		if isMySQLDuplicateEntry(err) { //幂等命中，该撮合事件已处理
 			return nil
 		}
 		// log.Println("order_repo CreateTradeTx error:", err)//
-		return err
+		return wrapDBError(err)
 	}
 	return nil
 }
@@ -397,12 +399,12 @@ func (r *OrderRepo) CancelOrder(
 		orderID,
 	)
 	if err != nil {
-		return err
+		return wrapDBError(err)
 	}
 
 	rows, err := res.RowsAffected()
 	if err != nil {
-		return err
+		return wrapDBError(err)
 	}
 
 	if rows == 0 {
@@ -419,10 +421,13 @@ func (r *OrderRepo) FindActiveOrdersForRecovery(ctx context.Context) ([]*model.O
 		SELECT id, user_id, symbol, type, side, price, quantity, filled_quantity, status, created_at
 		FROM orders
 		WHERE status IN ('pending', 'partial')
+			AND filled_quantity < quantity
+			AND type = 'limit'
+			AND price IS NOT NULL
 		ORDER BY created_at ASC
 	`)
 	if err != nil {
-		return nil, err
+		return nil, wrapDBError(err)
 	}
 	defer rows.Close()
 
@@ -436,20 +441,20 @@ func (r *OrderRepo) FindActiveOrdersForRecovery(ctx context.Context) ([]*model.O
 			&o.Symbol,
 			&o.Type,
 			&o.Side,
-			&o.Price,
+			&price,
 			&o.Quantity,
 			&o.FilledQuantity,
 			&o.Status,
 			&o.CreatedAt,
 		); err != nil {
-			return nil, err
+			return nil, wrapDBError(err)
 		}
 		o.Price = &price
 		orders = append(orders, &o)
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, err
+		return nil, wrapDBError(err)
 	}
 
 	return orders, nil
@@ -481,7 +486,7 @@ func (r *OrderRepo) FindDirtyOrdersForRecovery(
 		ORDER BY id ASC
 	`)
 	if err != nil {
-		return nil, err
+		return nil, wrapDBError(err)
 	}
 	defer rows.Close()
 
@@ -497,14 +502,14 @@ func (r *OrderRepo) FindDirtyOrdersForRecovery(
 			&item.FilledQuantity,
 			&item.Reason,
 		); err != nil {
-			return nil, err
+			return nil, wrapDBError(err)
 		}
 
 		res = append(res, item)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, wrapDBError(err)
 	}
 
 	return res, nil

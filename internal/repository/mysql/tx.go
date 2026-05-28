@@ -11,13 +11,17 @@ func (r *OrderRepo) WithTx(
 ) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return wrapDBError(err)
 	}
 
 	if err := fn(tx); err != nil {
 		_ = tx.Rollback()
-		return err
+		return wrapDBError(err)
 	}
 
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return wrapDBError(err)
+	}
+
+	return nil
 }

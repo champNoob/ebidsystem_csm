@@ -29,6 +29,7 @@ func (r *AdminRepo) GetGlobalStats(ctx context.Context) (
 		`SELECT COUNT(*) FROM orders`,
 	).Scan(&totalOrders)
 	if err != nil {
+		err = wrapDBError(err)
 		return
 	}
 
@@ -40,6 +41,10 @@ func (r *AdminRepo) GetGlobalStats(ctx context.Context) (
 			IFNULL(SUM(price * quantity),0)
 		FROM trades
 	`).Scan(&totalTrades, &totalVolume, &totalTurnover)
+	if err != nil {
+		err = wrapDBError(err)
+		return
+	}
 
 	return
 }
@@ -52,7 +57,7 @@ func (r *AdminRepo) GetUserRoleStats(ctx context.Context) ([]dto.UserRoleStat, e
 		GROUP BY role
 	`)
 	if err != nil {
-		return nil, err
+		return nil, wrapDBError(err)
 	}
 	defer rows.Close()
 
@@ -60,7 +65,7 @@ func (r *AdminRepo) GetUserRoleStats(ctx context.Context) ([]dto.UserRoleStat, e
 	for rows.Next() {
 		var s dto.UserRoleStat
 		if err := rows.Scan(&s.Role, &s.Count); err != nil {
-			return nil, err
+			return nil, wrapDBError(err)
 		}
 		res = append(res, s)
 	}
@@ -102,7 +107,7 @@ func (r *AdminRepo) GetUserRanking(ctx context.Context, limit int) ([]dto.UserRa
 		LIMIT ?
 	`, limit)
 	if err != nil {
-		return nil, err
+		return nil, wrapDBError(err)
 	}
 	defer rows.Close()
 
@@ -117,13 +122,13 @@ func (r *AdminRepo) GetUserRanking(ctx context.Context, limit int) ([]dto.UserRa
 			&u.SellVolume,
 			&u.TotalVolume,
 		); err != nil {
-			return nil, err
+			return nil, wrapDBError(err)
 		}
 		res = append(res, u)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, wrapDBError(err)
 	}
 
 	return res, nil
@@ -134,14 +139,14 @@ func (r *AdminRepo) GetSymbolStats(ctx context.Context) ([]dto.SymbolStat, error
 		SELECT 
 			IFNULL(symbol, 'UNKNOWN') AS symbol,
 			COUNT(*) as trades,
-			FNULL(SUM(quantity), 0) as volume,
+			IFNULL(SUM(quantity), 0) as volume,
 			IFNULL(SUM(price * quantity), 0) as turnover
 		FROM trades
-		GROUP BY symbol
+		GROUP BY IFNULL(symbol, 'UNKNOWN')
 		ORDER BY volume DESC
 	`)
 	if err != nil {
-		return nil, err
+		return nil, wrapDBError(err)
 	}
 	defer rows.Close()
 
@@ -154,7 +159,7 @@ func (r *AdminRepo) GetSymbolStats(ctx context.Context) ([]dto.SymbolStat, error
 			&s.Volume,
 			&s.Turnover,
 		); err != nil {
-			return nil, err
+			return nil, wrapDBError(err)
 		}
 		res = append(res, s)
 	}
@@ -170,7 +175,7 @@ func (r *AdminRepo) GetOrderStatusStats(ctx context.Context) ([]dto.OrderStatusS
 		ORDER BY COUNT(*) DESC
 	`)
 	if err != nil {
-		return nil, err
+		return nil, wrapDBError(err)
 	}
 	defer rows.Close()
 
@@ -178,7 +183,7 @@ func (r *AdminRepo) GetOrderStatusStats(ctx context.Context) ([]dto.OrderStatusS
 	for rows.Next() {
 		var s dto.OrderStatusStat
 		if err := rows.Scan(&s.Status, &s.Count); err != nil {
-			return nil, err
+			return nil, wrapDBError(err)
 		}
 		res = append(res, s)
 	}
@@ -201,7 +206,7 @@ func (r *AdminRepo) GetRecentTrades(ctx context.Context, limit int) ([]dto.Recen
 		LIMIT ?
 	`, limit)
 	if err != nil {
-		return nil, err
+		return nil, wrapDBError(err)
 	}
 	defer rows.Close()
 
@@ -218,7 +223,7 @@ func (r *AdminRepo) GetRecentTrades(ctx context.Context, limit int) ([]dto.Recen
 			&t.Quantity,
 			&t.CreatedAt,
 		); err != nil {
-			return nil, err
+			return nil, wrapDBError(err)
 		}
 		res = append(res, t)
 	}
@@ -237,7 +242,7 @@ func (r *AdminRepo) GetTradeTimeline(ctx context.Context) ([]dto.TradeTimelinePo
 		ORDER BY time_bucket ASC
 	`)
 	if err != nil {
-		return nil, err
+		return nil, wrapDBError(err)
 	}
 	defer rows.Close()
 
@@ -245,7 +250,7 @@ func (r *AdminRepo) GetTradeTimeline(ctx context.Context) ([]dto.TradeTimelinePo
 	for rows.Next() {
 		var p dto.TradeTimelinePoint
 		if err := rows.Scan(&p.TimeBucket, &p.Trades, &p.Volume, &p.Turnover); err != nil {
-			return nil, err
+			return nil, wrapDBError(err)
 		}
 		res = append(res, p)
 	}
@@ -294,7 +299,7 @@ func (r *AdminRepo) GetAdminOrders(
 	`, whereSQL)
 
 	if err := r.db.QueryRowContext(ctx, countSQL, args...).Scan(&total); err != nil {
-		return nil, err
+		return nil, wrapDBError(err)
 	}
 
 	offset := (query.Page - 1) * query.PageSize
@@ -322,7 +327,7 @@ func (r *AdminRepo) GetAdminOrders(
 
 	rows, err := r.db.QueryContext(ctx, listSQL, listArgs...)
 	if err != nil {
-		return nil, err
+		return nil, wrapDBError(err)
 	}
 	defer rows.Close()
 
@@ -344,7 +349,7 @@ func (r *AdminRepo) GetAdminOrders(
 			&item.Status,
 			&item.CreatedAt,
 		); err != nil {
-			return nil, err
+			return nil, wrapDBError(err)
 		}
 
 		if price.Valid {
@@ -355,7 +360,7 @@ func (r *AdminRepo) GetAdminOrders(
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, wrapDBError(err)
 	}
 
 	return &dto.AdminOrderPage{
