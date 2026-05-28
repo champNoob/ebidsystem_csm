@@ -55,7 +55,7 @@ func (s *AdminService) GetUserRanking(ctx context.Context, limit int) ([]dto.Use
 	if limit <= 0 || limit > 100 {
 		limit = 10
 	}
-	return s.repo.GetUserRanking(ctx, 10)
+	return s.repo.GetUserRanking(ctx, limit)
 }
 
 func (s *AdminService) GetRecentTrades(ctx context.Context, limit int) ([]dto.RecentTrade, error) {

@@ -3,9 +3,9 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"ebidsystem_csm/internal/apperror"
 	"ebidsystem_csm/internal/model"
 	"ebidsystem_csm/internal/repository"
-	"log"
 )
 
 type UserRepo struct {
@@ -24,7 +24,10 @@ func (r *UserRepo) GetByID(ctx context.Context, id int64) (*model.User, error) {
 
 	var u model.User
 	if err := row.Scan(&u.ID, &u.Username, &u.Role); err != nil {
-		return nil, err
+		if err == sql.ErrNoRows {
+			return nil, apperror.ErrUserNotFound
+		}
+		return nil, wrapDBError(err)
 	}
 	return &u, nil
 }
@@ -37,7 +40,7 @@ func (r *UserRepo) ExistsByUsername(ctx context.Context, username string) (bool,
 		username,
 	).Scan(&count)
 	if err != nil {
-		return false, err
+		return false, wrapDBError(err)
 	}
 	return count > 0, nil
 }
@@ -46,7 +49,7 @@ func (r *UserRepo) FindByUsername(ctx context.Context, username string) (*model.
 	row := r.db.QueryRowContext(
 		ctx,
 		`SELECT id, username, password_hash, role, is_deleted
-		 FROM users WHERE username = ?`,
+		FROM users WHERE username = ?`,
 		username,
 	)
 
@@ -62,7 +65,7 @@ func (r *UserRepo) FindByUsername(ctx context.Context, username string) (*model.
 		return nil, nil
 	}
 	if err != nil {
-		return nil, err
+		return nil, wrapDBError(err)
 	}
 
 	return &user, nil
@@ -81,7 +84,10 @@ func (r *UserRepo) Create(ctx context.Context, user *model.User) error {
 		user.Role,
 	)
 	if err != nil {
-		log.Printf("%v", err)
+		if isMySQLDuplicateEntry(err) {
+			return apperror.ErrUserAlreadyExists
+		}
+		return wrapDBError(err)
 	}
-	return err
+	return wrapDBError(err)
 }

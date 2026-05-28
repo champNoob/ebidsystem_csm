@@ -17,7 +17,8 @@ func (r *OrderRepo) InsertMatchEventTx( //事件去重
 ) (bool, error) {
 	_, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO match_events (event_id, symbol, buy_order_id, sell_order_id, quantity, price) VALUES (?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO match_events (event_id, symbol, buy_order_id, sell_order_id, quantity, price)
+		VALUES (?, ?, ?, ?, ?, ?)`,
 		eventID,
 		symbol,
 		buyOrderID,
@@ -29,7 +30,7 @@ func (r *OrderRepo) InsertMatchEventTx( //事件去重
 		if isMySQLDuplicateEntry(err) {
 			return false, nil // 已处理过
 		}
-		return false, err
+		return false, wrapDBError(err)
 	}
 	return true, nil // 首次处理
 }

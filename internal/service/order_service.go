@@ -9,6 +9,7 @@ import (
 	"ebidsystem_csm/internal/pkg/logger"
 	"ebidsystem_csm/internal/repository"
 	"fmt"
+	"log"
 )
 
 type OrderService struct {
@@ -208,12 +209,12 @@ func (s *OrderService) StartMatchEventListener() {
 			select {
 			case ev, ok := <-s.matcher.Events():
 				if !ok {
-					s.matchEventLogger.Log("[MATCH_EVENT_LISTENER_STOP] event channel closed")
+					s.logMatchEvent("[MATCH_EVENT_LISTENER_STOP] event channel closed")
 					return
 				}
 				if err := s.handleMatchEvent(s.ctx, ev); err != nil {
 					if be, ok := err.(*apperror.BusinessError); ok {
-						s.matchEventLogger.Log(fmt.Sprintf(
+						s.logMatchEvent(fmt.Sprintf(
 							"[MATCH_EVENT_ERROR] eventID=%s symbol=%s buyID=%d sellID=%d code=%s msg=%s",
 							ev.EventID,
 							ev.Symbol,
@@ -223,7 +224,7 @@ func (s *OrderService) StartMatchEventListener() {
 							be.Message,
 						))
 					} else {
-						s.matchEventLogger.Log(fmt.Sprintf(
+						s.logMatchEvent(fmt.Sprintf(
 							"[MATCH_EVENT_ERROR] eventID=%s symbol=%s buyID=%d sellID=%d err=%v",
 							ev.EventID,
 							ev.Symbol,
@@ -234,7 +235,7 @@ func (s *OrderService) StartMatchEventListener() {
 					}
 				}
 			case <-s.ctx.Done():
-				s.matchEventLogger.Log("[MATCH_EVENT_LISTENER_STOP] context canceled")
+				s.logMatchEvent("[MATCH_EVENT_LISTENER_STOP] context canceled")
 				return
 			}
 		}
@@ -292,7 +293,7 @@ func (s *OrderService) RecoverActiveOrders(ctx context.Context) error {
 	}
 
 	for _, o := range dirtyOrders {
-		s.matchEventLogger.Log(fmt.Sprintf(
+		s.logMatchEvent(fmt.Sprintf(
 			"[RECOVERY_DIRTY_ORDER] id=%d symbol=%s status=%s quantity=%d filled=%d reason=%s",
 			o.ID,
 			o.Symbol,
@@ -341,7 +342,7 @@ func (s *OrderService) RecoverActiveOrders(ctx context.Context) error {
 		}
 
 		if err := s.matcher.Submit(matchingOrder); err != nil {
-			s.matchEventLogger.Log(fmt.Sprintf(
+			s.logMatchEvent(fmt.Sprintf(
 				"[RECOVER_ORDER_ERROR] orderID=%d symbol=%s side=%s remaining=%d err=%v",
 				o.ID,
 				o.Symbol,
@@ -355,7 +356,7 @@ func (s *OrderService) RecoverActiveOrders(ctx context.Context) error {
 		recovered++
 	}
 
-	s.matchEventLogger.Log(fmt.Sprintf(
+	s.logMatchEvent(fmt.Sprintf(
 		"[RECOVER_ORDERS_DONE] recovered=%d skipped=%d dirty=%d",
 		recovered,
 		skipped,
@@ -363,4 +364,13 @@ func (s *OrderService) RecoverActiveOrders(ctx context.Context) error {
 	))
 
 	return nil
+}
+
+// 防止 logger 初始化失败，提供备用方案：
+func (s *OrderService) logMatchEvent(msg string) {
+	if s.matchEventLogger != nil {
+		s.matchEventLogger.Log(msg)
+		return
+	}
+	log.Println(msg)
 }

@@ -9,12 +9,12 @@ type BusinessError struct {
 	Cause   error
 }
 
-// 实现 Error 错误接口：
+// 返回错误消息：
 func (e *BusinessError) Error() string {
 	return e.Message
 }
 
-// 实现 Unwrap 接口：
+// 返回底层的 Cause 错误，用于错误链：
 func (e *BusinessError) Unwrap() error {
 	return e.Cause
 }
@@ -26,6 +26,19 @@ func (e *BusinessError) WithCause(cause error) *BusinessError {
 		Message: e.Message,
 		Cause:   cause,
 	}
+}
+
+// Wrap 用指定的业务错误包装底层原因：
+/* 对外仍然暴露 base 的 Code 和 Message，
+底层 cause 通过 errors.Unwrap / errors.As 保留，供日志和调试使用 */
+func Wrap(base *BusinessError, cause error) error {
+	if cause == nil {
+		return base
+	}
+	if base == nil {
+		return cause
+	}
+	return base.WithCause(cause)
 }
 
 // 类型断言：
@@ -45,7 +58,7 @@ func CodeOf(err error) string {
 	return ErrInternal.Code
 }
 
-// 中提取错误消息：
+// 提取错误消息：
 func MessageOf(err error) string {
 	if be, ok := AsBusinessError(err); ok {
 		return be.Message

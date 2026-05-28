@@ -6,7 +6,6 @@ import (
 	"ebidsystem_csm/internal/model"
 	"ebidsystem_csm/internal/pkg/security"
 	"ebidsystem_csm/internal/repository"
-	"strings"
 )
 
 type UserService struct {
@@ -60,21 +59,12 @@ func (s *UserService) CreateUser(
 
 	// 4. 用户名唯一性校验：
 	if err := s.repo.Create(ctx, user); err != nil {
-		// MySQL 错误 1062 → 唯一键冲突
-		if isMySQLDuplicateEntry(err) {
-			return apperror.ErrUserAlreadyExists
-		}
 		return apperror.ErrInternal
 	}
 	// 5. 创建审计日志
 	// 6. 触发领域事件
 
 	return nil
-}
-
-func isMySQLDuplicateEntry(err error) bool {
-	// 简单匹配 MySQL 错误号 1062
-	return strings.Contains(err.Error(), "Error 1062")
 }
 
 type LoginInput struct {

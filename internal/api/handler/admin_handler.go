@@ -21,9 +21,7 @@ func NewAdminHandler(s *service.AdminService) *AdminHandler {
 func (h *AdminHandler) GetDashboard(c *gin.Context) {
 	res, err := h.service.GetDashboard(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		respondError(c, err)
 		return
 	}
 
@@ -62,7 +60,7 @@ func (h *AdminHandler) ListUserOrders(c *gin.Context) {
 func (h *AdminHandler) GetSymbolStats(c *gin.Context) {
 	stats, err := h.service.GetSymbolStats(c.Request.Context())
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		respondError(c, err)
 		return
 	}
 

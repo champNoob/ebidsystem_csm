@@ -25,6 +25,7 @@ var errorCodeToHTTPStatus = map[string]int{
 	"USER_INVALID_ROLE":        http.StatusBadRequest,   // 400
 	"USER_INVALID_PASSWORD":    http.StatusUnauthorized, // 401
 	"USER_PASSWORD_TOO_SHORT":  http.StatusBadRequest,   // 400
+	"USER_PASSWORD_TOO_LONG":   http.StatusBadRequest,   // 400
 	// ORDER 域：
 	"ORDER_INVALID_ID":           http.StatusBadRequest, // 400
 	"ORDER_NOT_FOUND":            http.StatusNotFound,   // 404
